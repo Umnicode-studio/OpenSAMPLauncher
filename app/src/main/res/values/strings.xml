@@ -1,0 +1,58 @@
+<resources>
+    <string name="app_name">OpenSAMP Launcher</string>
+    <string name="user_config_name">user_config</string>
+
+    <string name="title_home">Home</string>
+    <string name="title_servers">Servers</string>
+    <string name="title_settings">Settings</string>
+
+    <string name="welcome">Welcome to OpenSAMP Launcher</string>
+
+    <string name="play_button_launch_SAMP">Play</string>
+    <string name="play_button_server_incorrect">Server info incorrect</string>
+    <string name="play_button_install_SAMP">Install SAMP</string>
+    <string name="play_button_show_download_state">Downloading %d of %d</string>
+
+    <string name="add_server_button">Add server to list</string>
+
+    <string name="server_port_hint">Server port</string>
+    <string name="server_ip_hint">Server ip</string>
+    <string name="server_password_hint">Server password (optional)</string>
+
+    <string name="help_string">Enter server ip/port</string>
+    <string name="help_server_info">Server info</string>
+
+    <string name="server_players">%d/%d players online</string>
+    <string name="server_port_ip">%s:%d</string>
+    <string name="server_time">Time - %s</string>
+    <string name="server_mode">Mode - %s</string>
+    <string name="server_map">Map - %s</string>
+    <string name="server_language">Language - %s</string>
+    <string name="server_password">Password - %s</string>
+
+    <string name="none_string">N/A</string>
+
+    <string name="server_status_pending">Pending</string>
+    <string name="server_status_online">Online</string>
+    <string name="server_status_offline">Offline</string>
+    <string name="server_status_not_found">Server not found</string>
+    <string name="server_status_failed_to_fetch">Failed to fetch</string>
+    <string name="server_status_incorrect_ip">Incorrect IP, please recheck it</string>
+
+    <string name="settings_nickname_text">Edit nickname</string>
+    <string name="settings_ping_timeout_text">Edit ping timeout (value less than 2500 can cause inaccuracies)</string>
+
+    <string name="SAMP_package_name">com.rockstargames.gtasa</string>
+    <string name="SAMP_download_directory"></string>
+
+    <string name="SAMP_apk_url"></string>
+    <string name="SAMP_obb_url"></string>
+
+    <string name="installer_state_none_SAMP_found">SAMP found</string>
+    <string name="installer_state_none_SAMP_not_found">SAMP not found</string>
+    <string name="installer_state_downloading">Downloading SAMP file %d of %d</string>
+    <string name="installer_state_downloading_progress_bar"> %.2f/%.2f MB</string>
+
+    <string name="installer_button_install">Install SAMP</string>
+    <string name="installer_button_cancel">Cancel</string>
+</resources>

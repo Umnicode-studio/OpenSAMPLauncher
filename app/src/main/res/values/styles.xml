@@ -1,0 +1,21 @@
+<resources>
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+
+        <item name="android:textViewStyle">@style/ComfortaaTextViewStyle</item>
+        <item name="android:button">@style/LatoButtonViewStyle</item>
+    </style>
+
+    <style name="ComfortaaTextViewStyle">
+        <item name="fontFamily">@font/comfortaa_light</item>
+    </style>
+
+    <style name="LatoButtonViewStyle">
+        <item name="fontFamily">@font/lato</item>
+    </style>
+
+</resources>
