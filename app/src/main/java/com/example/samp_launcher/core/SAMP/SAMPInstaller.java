@@ -4,57 +4,103 @@ import android.app.DownloadManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.database.ContentObserver;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Environment;
+import android.os.Handler;
+
+import androidx.annotation.Nullable;
 
 import com.example.samp_launcher.R;
 
 import java.util.ArrayList;
 
+
 interface SAMPInstallerOnDownloadCallback{
     void Finished();
-    void ProgressChanged(DownloadState State);
+    void ProgressChanged(DownloadStatus Status);
+}
+
+class DownloadObserver extends ContentObserver{
+    private int DownloadId;
+    private SAMPInstallerOnDownloadCallback Callback;
+    private DownloadManager _DownloadManager;
+
+    public DownloadObserver(Handler handler, DownloadManager downloadManager, int DownloadId, SAMPInstallerOnDownloadCallback Callback) {
+        super(handler);
+
+        this._DownloadManager = downloadManager;
+        this.DownloadId = DownloadId;
+        this.Callback = Callback;
+    }
+
+    public void onChange(boolean selfChange, @Nullable Uri uri) {
+        super.onChange(selfChange, uri);
+
+        // Init query
+        DownloadManager.Query query = new DownloadManager.Query();
+        query.setFilterById(this.DownloadId);
+
+        Cursor c = this._DownloadManager.query(query);
+        if (c.moveToFirst()) {
+            // Get indexes
+            int SizeIndex = c.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES);
+            int DownloadedIndex = c.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR);
+
+            // Get value from indexes
+            float Size = c.getInt(SizeIndex);
+            float Downloaded = c.getInt(DownloadedIndex);
+
+            // Get status
+            int Status = c.getInt(c.getColumnIndex(DownloadManager.COLUMN_STATUS));
+
+            if (Size != -1){
+                this.Callback.ProgressChanged(new DownloadStatus(Downloaded, Size, 0, 0));
+            }
+        }
+    }
 }
 
 public class SAMPInstaller {
-    private SAMPInstallerState State;
-    private DownloadState DownloadState;
+    private SAMPInstallerStatus Status;
+    private DownloadStatus DownloadStatus;
 
     public ArrayList<SAMPInstallerCallback> Callbacks;
     private String APK_Filepath;
 
     public SAMPInstaller(){
         this.Callbacks = new ArrayList<>();
-        this.DownloadState = new DownloadState(0, 0, 0, 0);
+        this.DownloadStatus = new DownloadStatus(0, 0, 0, 0);
 
-        this.ChangeState(SAMPInstallerState.NONE);
+        this.ChangeStatus(SAMPInstallerStatus.NONE);
         this.APK_Filepath = "";
     }
 
     private void DownloadTo(String Folder,  Context context, SAMPInstallerOnDownloadCallback Callback){
-        this.ChangeState(SAMPInstallerState.DOWNLOADING);
+        this.ChangeStatus(SAMPInstallerStatus.DOWNLOADING);
 
-        DownloadState DownloadState = new DownloadState(0, 1000, 1,2);
+        DownloadStatus DownloadStatus = new DownloadStatus(0, 1000, 1,2);
 
         // Download to temp folder
-        /*DownloadManager downloadManager = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
-        Uri uri = Uri.parse("http://www.example.com/myfile.mp3");
+        DownloadManager downloadManager = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
+        Uri uri = Uri.parse("https://drive.google.com/uc?export=download&id=1wa1SYW81wfirLMQ2APnWcM-XNxnJxYZ3");
 
         // Create request
         DownloadManager.Request request = new DownloadManager.Request(uri);
         request.setTitle("My File");
         request.setDescription("Downloading");
-        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN);
         request.setVisibleInDownloadsUi(false);
-        request.setDestinationUri(Uri.parse("file://" + Environment.getExternalStorageDirectory() + "/myfile.mp3"));
+        request.setDestinationUri(Uri.parse("file://" + Environment.getExternalStorageDirectory() + "/myfile.apk"));
 
-        downloadManager.enqueue(request); */
+        downloadManager.enqueue(request);
 
-        Callback.ProgressChanged(DownloadState);
+        Callback.ProgressChanged(DownloadStatus);
 
         //TODO: On download finish
-        // Change state to waiting
-        //this.ChangeState(SAMPInstallerState.WAITING_FOR_APK_INSTALL);
+        // Change Status to waiting
+        //this.ChangeStatus(SAMPInstallerStatus.WAITING_FOR_APK_INSTALL);
 
         APK_Filepath = "";
     }
@@ -64,17 +110,17 @@ public class SAMPInstaller {
     }
 
     public boolean Install(Context context){
-        if (!IsInstalled(context.getPackageManager(), context.getResources()) && this.State == SAMPInstallerState.NONE){
+        if (!IsInstalled(context.getPackageManager(), context.getResources()) && this.Status == SAMPInstallerStatus.NONE){
             this.DownloadTo(context.getResources().getString(R.string.SAMP_download_directory), context,
                             new SAMPInstallerOnDownloadCallback() {
                 public void Finished() {
 
                 }
-                public void ProgressChanged(DownloadState State) {
+                public void ProgressChanged(DownloadStatus Status) {
                     // Forward event to listeners
                     for (SAMPInstallerCallback Callback : Callbacks){
-                        DownloadState = State;
-                        Callback.OnDownloadProgressChanged(DownloadState);
+                        DownloadStatus = Status;
+                        Callback.OnDownloadProgressChanged(DownloadStatus);
                     }
                 }
             });
@@ -85,8 +131,8 @@ public class SAMPInstaller {
     }
 
     public boolean CancelInstall(){
-        if (this.State != SAMPInstallerState.NONE) {
-            this.ChangeState(SAMPInstallerState.NONE);
+        if (this.Status != SAMPInstallerStatus.NONE) {
+            this.ChangeStatus(SAMPInstallerStatus.NONE);
             for (SAMPInstallerCallback Callback : Callbacks) {
                 Callback.InstallCanceled();
             }
@@ -101,20 +147,20 @@ public class SAMPInstaller {
     }
 
     // Utils
-    private void ChangeState(SAMPInstallerState State){
-        this.State = State;
+    private void ChangeStatus(SAMPInstallerStatus Status){
+        this.Status = Status;
 
         for (SAMPInstallerCallback globalCallback : this.Callbacks){
-            globalCallback.OnStateChanged(State);
+            globalCallback.OnStatusChanged(Status);
         }
     }
 
     // Getters
-    public SAMPInstallerState GetState(){
-        return this.State;
+    public SAMPInstallerStatus GetStatus(){
+        return this.Status;
     }
-    public DownloadState GetDownloadState(){
-        return this.DownloadState;
+    public DownloadStatus GetDownloadStatus(){
+        return this.DownloadStatus;
     }
 
     // Static tools

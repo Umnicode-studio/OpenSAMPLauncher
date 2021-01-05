@@ -1,9 +1,10 @@
 package com.example.samp_launcher.core.SAMP;
 
-public enum SAMPInstallerState {
+public enum SAMPInstallerStatus {
     DOWNLOADING,
     DOWNLOAD_ERROR,
     UNZIPPING,
     WAITING_FOR_APK_INSTALL,
-    NONE
+    SAMP_INSTALLED,
+    SAMP_NOT_FOUND
 }

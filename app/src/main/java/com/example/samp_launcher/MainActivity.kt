@@ -13,8 +13,8 @@ import androidx.navigation.ui.setupWithNavController
 
 class MainActivity : AppCompatActivity() {
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    override fun onCreate(savedInstanceStatus: Bundle?) {
+        super.onCreate(savedInstanceStatus)
 
         super.requestWindowFeature(Window.FEATURE_NO_TITLE);
         super.getSupportActionBar()?.hide();

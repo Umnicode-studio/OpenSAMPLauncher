@@ -114,7 +114,7 @@ public class ServerView extends LinearLayout {
         return this.Config;
     }
 
-    public void SetShowIpPortState(boolean IsEnabled, boolean UpdateAnyway){
+    public void SetShowIpPortStatus(boolean IsEnabled, boolean UpdateAnyway){
         if (this.Show_IP_Port != IsEnabled || UpdateAnyway){
             TextView ipPortText = this.RootView.findViewById(R.id.server_ip_port);
 
@@ -127,26 +127,26 @@ public class ServerView extends LinearLayout {
             this.Show_IP_Port = IsEnabled;
         }
     }
-    public boolean GetShowIpPortState(){
+    public boolean GetShowIpPortStatus(){
         return this.Show_IP_Port;
     }
 
-    public void SetHideInfoWhenServerStatusErrorState(boolean IsEnabled, boolean UpdateAnyway){
+    public void SetHideInfoWhenServerStatusErrorStatus(boolean IsEnabled, boolean UpdateAnyway){
         if (this.HideInfoWhenServerStatusError != IsEnabled || UpdateAnyway){
             this.HideInfoWhenServerStatusError = IsEnabled;
 
             this.UpdateRule_HideInfoWhenServerStatusError();
         }
     }
-    public boolean GetHideInfoWhenServerStatusErrorState(){
+    public boolean GetHideInfoWhenServerStatusErrorStatus(){
         return this.HideInfoWhenServerStatusError;
     }
 
     private void Init(Context context){
         this.RootView = inflate(context, R.layout.server_view, this);
         
-        this.SetShowIpPortState(false, true); // Hide ip:port label
-        this.SetHideInfoWhenServerStatusErrorState(true, true); // Hide info labels when error status
+        this.SetShowIpPortStatus(false, true); // Hide ip:port label
+        this.SetHideInfoWhenServerStatusErrorStatus(true, true); // Hide info labels when error status
     }
 
     private void UpdateRule_HideInfoWhenServerStatusError(){

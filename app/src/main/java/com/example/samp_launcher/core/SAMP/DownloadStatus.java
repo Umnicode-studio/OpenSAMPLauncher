@@ -1,13 +1,13 @@
 package com.example.samp_launcher.core.SAMP;
 
-public class DownloadState{
+public class DownloadStatus{
     public float Downloaded = 0;
     public float FullSize = 0;
 
     public int File = 0;
     public int FilesNumber = 0;
 
-    DownloadState(float Downloaded, float FullSize, int File, int FliesNumber){
+    DownloadStatus(float Downloaded, float FullSize, int File, int FliesNumber){
         this.Downloaded = Downloaded;
         this.FullSize = FullSize;
 

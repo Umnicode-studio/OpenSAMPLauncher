@@ -1,10 +1,9 @@
 package com.example.samp_launcher.core.SAMP;
 
 public interface SAMPInstallerCallback {
-    void OnStateChanged(SAMPInstallerState State);
+    void OnStatusChanged(SAMPInstallerStatus Status);
 
-    void OnDownloadProgressChanged(DownloadState State);
-    void OnUnzipProgressChanged(UnzipState State);
+    void OnDownloadProgressChanged(DownloadStatus Status);
 
     void InstallFinished();
     void InstallCanceled();
