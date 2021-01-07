@@ -67,7 +67,7 @@ public class SAMPInstaller {
 
         this.ChangeStatus(SAMPInstallerStatus.DOWNLOADING);
         this.DownloadComponent.DownloadTo(Arrays.asList("https://drive.google.com/uc?export=download&id=1wa1SYW81wfirLMQ2APnWcM-XNxnJxYZ3"),
-                                          "file://" + Environment.getExternalStorageDirectory() + "/downloads/myfile.apk");
+                Environment.getExternalStorageDirectory());
 
         //TODO: On download finish
         // Change Status to waiting
@@ -113,7 +113,11 @@ public class SAMPInstaller {
         return this.Status;
     }
     public DownloadStatus GetDownloadStatus(){
-        return this.DownloadComponent.GetDownloadStatus();
+        if (this.DownloadComponent.GetQueue().isEmpty() && !this.DownloadComponent.GetHistory().isEmpty()) {
+            return this.DownloadComponent.GetHistory().get(this.DownloadComponent.GetHistory().size() - 1).Status;
+        }
+
+        return this.DownloadComponent.GetCurrentTaskStatus();
     }
     public InstallStatus GetLastInstallStatus() {return this.LastInstallStatus; }
 

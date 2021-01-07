@@ -51,7 +51,8 @@
     <string name="installer_status_none_SAMP_found">SAMP found</string>
     <string name="installer_status_none_SAMP_not_found">SAMP not found</string>
     <string name="installer_status_downloading">Downloading SAMP file %d of %d</string>
-    <string name="installer_status_downloading_progress_bar"> %.2f/%.2f MB</string>
+    <string name="installer_status_downloading_progress_bar_full"> %.2f/%.2f MB</string>
+    <string name="installer_status_downloading_progress_bar_only_downloaded">%.2f MB</string>
 
     <string name="installer_button_install">Install SAMP</string>
     <string name="installer_button_cancel">Cancel</string>

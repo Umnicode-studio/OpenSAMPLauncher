@@ -1,216 +1,159 @@
 package com.example.samp_launcher.core.SAMP.Components;
 
-import android.app.DownloadManager;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.database.ContentObserver;
-import android.database.Cursor;
-import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.Looper;
 import android.util.Log;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
 import com.example.samp_launcher.core.SAMP.Enums.DownloadStatus;
 
-import java.net.URI;
-import java.sql.Time;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
-import java.util.Timer;
-import java.util.TimerTask;
 
-interface DownloadProgressCheckerCallback{
-    void ProgressChanged(float Downloaded, float FullSize);
+interface DownloadCallback{
+    void ProgressChanged(DownloadStatus Status);
+    void OnFinished(boolean IsSuccessful);
 }
-class DownloadProgressChecker {
-    private final long DownloadId;
-    private final DownloadProgressCheckerCallback Callback;
-    private final DownloadManager _DownloadManager;
 
-    private Timer _Timer;
-    private TimerTask CheckerTask;
-    
-    private int Delay = 0;
-    private boolean IsWatching = false;
+class DownloadAsyncTask extends AsyncTask<Void, Void, Void>{
+    public final DownloadTask Task;
+    public final DownloadComponent.FinishDownload_Class FinishDownload;
+    public final DownloadComponentCallback Callback;
 
-    public DownloadProgressChecker(DownloadManager downloadManager, long DownloadId, int Delay, Context context,
-                                   DownloadProgressCheckerCallback Callback) {
-        this._DownloadManager = downloadManager;
-        this.DownloadId = DownloadId;
+    DownloadAsyncTask(DownloadTask Task, DownloadComponent.FinishDownload_Class FinishDownload,
+                      DownloadComponentCallback Callback){
+        super();
+
+        this.Task = Task;
+        this.FinishDownload = FinishDownload;
         this.Callback = Callback;
-        this.Delay = Delay;
-
-        // Create timer
-        this._Timer = new Timer();
-
-        // Create checker
-        this.CheckerTask = new TimerTask() {
-            public void run() {
-                CheckFunction();
-            }
-        };
     }
 
-    // Destructor
-    protected void finalize() throws Throwable {
-        super.finalize();
+    protected Void doInBackground(Void... params){
+        int Count = 0;
+        try {
+            URL url = Task.URL.get(Task.FileIndex);
+            URLConnection Connection = url.openConnection();
+            Connection.connect();
 
-        // Unregister
-        this.SetWatchingState(false);
-    }
+            // Getting file length
+            Task.Status.FullSize = Connection.getContentLength();
 
-    public void SetWatchingState(boolean IsEnabled){
-        if (this.IsWatching != IsEnabled){
-            if (IsEnabled) this._Timer.schedule(this.CheckerTask, 0, this.Delay);
-            else this._Timer.cancel();
+            // Setup streams
+            InputStream Input = new BufferedInputStream(url.openStream(), 8192); // input
+            OutputStream Output = new FileOutputStream(new File(Task.OutDirectory, "Test.apk").getAbsoluteFile()); // output TODO
 
-            this.IsWatching = IsEnabled;
-        }
-    }
-    
-    // Getters
-    public boolean IsWatching(){
-        return this.IsWatching;
-    }
-    public int GetDelay(){
-        return this.Delay;
-    }
+            byte Data[] = new byte[1024];
 
-    private void CheckFunction(){
-        System.out.println("checkFunction() - " + this.DownloadId);
+            int Counter = 0;
 
-        // Init query
-        DownloadManager.Query query = new DownloadManager.Query();
-        query.setFilterById(this.DownloadId);
+            Runnable BroadcastProgressChanged = new Runnable() {
+                public void run() {
 
-        Cursor c = this._DownloadManager.query(query);
-        if (c.moveToFirst()) {
-            // Get indexes
-            int SizeIndex = c.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES);
-            int DownloadedIndex = c.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR);
+                }
+            };
 
-            System.out.println(c.getString(c.getColumnIndex(DownloadManager.COLUMN_TITLE)));
+            while ((Count = Input.read(Data)) != -1) {
+                Task.Status.Downloaded += Count;
+                Output.write(Data, 0, Count);
 
-            // Get value from indexes
-            float Size = c.getLong(SizeIndex);
-            float Downloaded = c.getLong(DownloadedIndex);
+                // Optimization
+                if (Counter == 30) {
+                    Counter = 0;
 
-            System.out.println("Size - " + Size);
-            this.Callback.ProgressChanged(Downloaded, Size);
-        }
-
-        // Closing cursor
-        c.close();
-    }
-}
-
-class DownloadTask{
-    public String OutDirectory = "";
-
-    public int FileIndex = 0;
-    public List<Uri> URI;
-
-    DownloadTask(int FileIndex, ArrayList<Uri> URI_List, String OutDir){
-        this.FileIndex = FileIndex;
-        this.URI = URI_List;
-        this.OutDirectory = OutDir;
-    }
-}
-
-public class DownloadComponent{
-    interface CompleteReceiverCallback{
-        void OnFinish(boolean IsSuccessful, Uri localUri);
-    }
-    class CompleteReceiver extends BroadcastReceiver {
-        public CompleteReceiverCallback Callback = null;
-        
-        public void onReceive(Context context, Intent intent) {
-            long completedId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
-
-            if (this.Callback != null && completedId == DownloadId) {
-                DownloadManager.Query query = new DownloadManager.Query();
-                query.setFilterById(DownloadId);
-
-                Cursor c = _DownloadManager.query(query);
-
-                if (c.moveToFirst()) {
-                    int Status = c.getInt(c.getColumnIndex(DownloadManager.COLUMN_STATUS));
-                    Uri uri = Uri.parse(c.getString(c.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)));
-
-                    // Broadcast finish event
-                    switch (Status) {
-                        case DownloadManager.STATUS_SUCCESSFUL:
-                            this.Callback.OnFinish(true, uri);
-                        case DownloadManager.STATUS_FAILED:
-                            this.Callback.OnFinish(false, uri);
-                            // Other statuses like PAUSED don't matter here, but you can implement them
-                    }
+                    this.BroadcastProgressChanged();
+                }else{
+                    Counter++;
                 }
             }
-        }
-    };
 
-    private final DownloadManager _DownloadManager;
+            // When finished, broadcast event not considering optimization counter
+            this.BroadcastProgressChanged();
+
+            // Flushing output
+            Output.flush();
+
+            // Closing streams
+            Output.close();
+            Input.close();
+
+            // Broadcast finish event
+            new Handler(Looper.getMainLooper()).post(() -> FinishDownload.Run(true, Task));
+
+        } catch (Exception e) {
+            Log.e("Error downloading", "- " + e.getMessage()); // Send message to log
+            FinishDownload.Run(false, Task);
+        }
+
+        return null;
+    }
+
+    private void BroadcastProgressChanged(){
+        new Handler(Looper.getMainLooper()).post(new Runnable () {
+            public void run () {
+                Callback.ProgressChanged(Task.Status);
+            }
+        });
+    }
+};
+
+public class DownloadComponent{
+    class FinishDownload_Class{
+        void Run(boolean IsSuccessful, DownloadTask Task){
+            Callback.Finished(IsSuccessful);
+
+            // Select next file
+            Task.FileIndex++;
+
+            // Recursion
+            DownloadFromQueue();
+        }
+    }
+
+    private final FinishDownload_Class FinishDownload;
     private final Context _Context;
 
-    private long DownloadId = -1;
-    private DownloadStatus DownloadStatus;
-
-    private final CompleteReceiver _CompleteReceiver;
-    private DownloadProgressChecker Checker = null;
-
     private final ArrayList<DownloadTask> Queue;
+    private final ArrayList<DownloadTask> History;
 
     public DownloadComponentCallback Callback;
 
     public DownloadComponent(Context context){
         // Setup queue
         this.Queue = new ArrayList<>();
+        this.History = new ArrayList<>();
+
+        this.FinishDownload = new FinishDownload_Class();
 
         this._Context = context;
-        this._DownloadManager = (DownloadManager)context.getSystemService(Context.DOWNLOAD_SERVICE);
-
-        this.DownloadStatus = new DownloadStatus(0, 0, 0, 0);
-
-        // Register receiver
-        this._CompleteReceiver = new CompleteReceiver();
-        this._Context.registerReceiver(this._CompleteReceiver, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
     }
 
-    // Destructor
-    protected void finalize() throws Throwable {
-        super.finalize();
-
-        // Unregister
-        this._Context.unregisterReceiver(this._CompleteReceiver);
-    }
-
-    public boolean DownloadTo(List<String> URI, String Filepath){
-        System.out.println("Start downloading... Amount of files is " + URI.size()); //TODO:
-        
-        ArrayList<Uri> URI_list = new ArrayList<>();
-        for (String uri_str : URI){
-            URI_list.add(Uri.parse(uri_str));
+    public void DownloadTo(List<String> URL, File Directory){
+        ArrayList<URL> URL_list = new ArrayList<>();
+        for (String url_str : URL){
+            try {
+                URL_list.add(new URL(url_str));
+            }catch (MalformedURLException ignore) { };
         }
-        
+
+        // If directory doesn't exist
+        if (!Directory.exists()) Directory.mkdir();
+
         // Create task
-        this.Queue.add(new DownloadTask(0, URI_list, Filepath));
+        this.Queue.add(new DownloadTask(0, URL_list, Directory, new DownloadStatus(0, -1, 1, URL_list.size())));
 
         // Force-start task (if not running)
         if (this.Queue.size() == 1){
             this.DownloadFromQueue();
         }
-
-        return true;
     }
 
     // Queue worker
@@ -219,67 +162,34 @@ public class DownloadComponent{
 
         // Get task
         DownloadTask Task = this.Queue.get(0);
-        if (Task.URI.size() <= Task.FileIndex){
+        if (Task.URL.size() <= Task.FileIndex){
             // Remove task
+            this.History.add(Task);
+
             this.Queue.remove(0);
             return;
         }
 
+        // Ok, we can start download next file
         // Update download status
-        this.DownloadStatus = new DownloadStatus(0, 0, Task.FileIndex + 1, this.Queue.size());
-        
-        // Create request
-        DownloadManager.Request request = new DownloadManager.Request(Task.URI.get(Task.FileIndex));
-        request.setTitle("File #" + (Task.FileIndex + 1));
-        request.setDescription("OpenSAMP launcher downloading");
+        Task.Status = new DownloadStatus(0, -1.0f, Task.FileIndex + 1, this.Queue.size());
+        this.Callback.ProgressChanged(Task.Status);
 
-        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE);
-        request.setVisibleInDownloadsUi(false);
-
-        request.setDescription(Task.OutDirectory);
-
-        this.DownloadId = this._DownloadManager.enqueue(request);
-        System.out.println("Id of download - " + this.DownloadId); //TODO:
-
-        // Register receiver callback
-        this._CompleteReceiver.Callback = new CompleteReceiverCallback() {
-            public void OnFinish(boolean IsSuccessful, Uri localUri) {
-                Callback.Finished(IsSuccessful);
-                DownloadId = -1;
-
-                // Stop watching
-                if (Checker != null){
-                    Checker.SetWatchingState(false);
-                    Checker = null;
-                }
-
-                // Move file to filepath
-                if (!Task.OutDirectory.isEmpty()){
-                    //TODO: Move to external storage
-                }
-
-                // Select next file
-                Task.FileIndex++;
-
-                // Recursion
-                DownloadFromQueue();
-            }
-        };
-        
-        // Create progress watcher
-        this.Checker = new DownloadProgressChecker(this._DownloadManager, this.DownloadId, 1000, this._Context,
-                new DownloadProgressCheckerCallback() {
-                    public void ProgressChanged(float Downloaded, float FullSize) {
-                        Callback.ProgressChanged(new DownloadStatus(Downloaded, FullSize, Task.FileIndex + 1, Task.URI.size())); 
-                    }
-                });
-        this.Checker.SetWatchingState(true);
+        DownloadAsyncTask downloadAsyncTask = new DownloadAsyncTask(Task, this.FinishDownload, this.Callback);
+        downloadAsyncTask.execute();
 
         // FinishDownload() will call next item from queue after download of current finish
     }
 
     // Getters
-    public DownloadStatus GetDownloadStatus(){
-        return this.DownloadStatus;
+    public DownloadStatus GetCurrentTaskStatus(){
+        return (!this.Queue.isEmpty()) ? this.Queue.get(0).Status : new DownloadStatus(0, -1, 0 ,0);
+    }
+
+    public ArrayList <DownloadTask> GetQueue(){
+        return this.Queue;
+    }
+    public ArrayList <DownloadTask> GetHistory(){
+        return this.History;
     }
 }

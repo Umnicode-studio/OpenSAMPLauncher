@@ -2,7 +2,7 @@ package com.example.samp_launcher.core.SAMP.Enums;
 
 public class DownloadStatus{
     public float Downloaded = 0;
-    public float FullSize = 0;
+    public float FullSize = -1.0f;
 
     public int File = 0;
     public int FilesNumber = 0;

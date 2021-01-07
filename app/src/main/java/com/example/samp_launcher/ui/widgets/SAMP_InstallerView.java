@@ -174,8 +174,14 @@ public class SAMP_InstallerView extends LinearLayout {
         Text.setText(String.format(resources.getString(R.string.installer_status_downloading), Status.File, Status.FilesNumber));
 
         Bar.setProgress((int)(Status.Downloaded / Status.FullSize));
-        ProgressBarText.setText(String.format(resources.getString(R.string.installer_status_downloading_progress_bar),
-                Utils.BytesToMB(Status.Downloaded), Utils.BytesToMB(Status.FullSize)));
+
+        if (Status.FullSize != -1.0f) {
+            ProgressBarText.setText(String.format(resources.getString(R.string.installer_status_downloading_progress_bar_full),
+                    Utils.BytesToMB(Status.Downloaded), Utils.BytesToMB(Status.FullSize)));
+        }else{
+            ProgressBarText.setText(String.format(resources.getString(R.string.installer_status_downloading_progress_bar_only_downloaded),
+                    Utils.BytesToMB(Status.Downloaded)));
+        }
     }
 
     // Alert
