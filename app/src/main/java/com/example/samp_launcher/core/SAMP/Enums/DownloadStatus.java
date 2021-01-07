@@ -1,4 +1,4 @@
-package com.example.samp_launcher.core.SAMP;
+package com.example.samp_launcher.core.SAMP.Enums;
 
 public class DownloadStatus{
     public float Downloaded = 0;
@@ -7,7 +7,7 @@ public class DownloadStatus{
     public int File = 0;
     public int FilesNumber = 0;
 
-    DownloadStatus(float Downloaded, float FullSize, int File, int FliesNumber){
+    public DownloadStatus(float Downloaded, float FullSize, int File, int FliesNumber){
         this.Downloaded = Downloaded;
         this.FullSize = FullSize;
 

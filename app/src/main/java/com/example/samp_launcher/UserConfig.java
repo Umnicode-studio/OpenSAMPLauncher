@@ -41,9 +41,7 @@ public class UserConfig {
         Gson gson = new Gson();
         try {
             this.ServerList = gson.fromJson(Prefs.getString("Servers", "[]"), this.ServerList.getClass());
-        }catch (Exception ignore){
-
-        }
+        }catch (Exception ignore){ }
     }
 
     public void Save(){

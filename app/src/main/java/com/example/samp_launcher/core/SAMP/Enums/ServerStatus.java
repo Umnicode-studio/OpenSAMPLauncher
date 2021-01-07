@@ -1,4 +1,4 @@
-package com.example.samp_launcher.core;
+package com.example.samp_launcher.core.SAMP.Enums;
 
 public enum ServerStatus {
     NOT_FOUND,

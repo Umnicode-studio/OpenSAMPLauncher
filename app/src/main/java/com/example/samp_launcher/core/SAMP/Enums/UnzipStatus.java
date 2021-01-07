@@ -1,4 +1,4 @@
-package com.example.samp_launcher.core.SAMP;
+package com.example.samp_launcher.core.SAMP.Enums;
 
 public class UnzipStatus {
     float Progress = 0.0f;

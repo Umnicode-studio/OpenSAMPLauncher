@@ -11,7 +11,7 @@
     <string name="play_button_launch_SAMP">Play</string>
     <string name="play_button_server_incorrect">Server info incorrect</string>
     <string name="play_button_install_SAMP">Install SAMP</string>
-    <string name="play_button_show_download_Status">Downloading %d of %d</string>
+    <string name="play_button_show_download_status">Downloading %d of %d</string>
 
     <string name="add_server_button">Add server to list</string>
 
@@ -48,10 +48,10 @@
     <string name="SAMP_apk_url"></string>
     <string name="SAMP_obb_url"></string>
 
-    <string name="installer_Status_none_SAMP_found">SAMP found</string>
-    <string name="installer_Status_none_SAMP_not_found">SAMP not found</string>
-    <string name="installer_Status_downloading">Downloading SAMP file %d of %d</string>
-    <string name="installer_Status_downloading_progress_bar"> %.2f/%.2f MB</string>
+    <string name="installer_status_none_SAMP_found">SAMP found</string>
+    <string name="installer_status_none_SAMP_not_found">SAMP not found</string>
+    <string name="installer_status_downloading">Downloading SAMP file %d of %d</string>
+    <string name="installer_status_downloading_progress_bar"> %.2f/%.2f MB</string>
 
     <string name="installer_button_install">Install SAMP</string>
     <string name="installer_button_cancel">Cancel</string>

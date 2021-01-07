@@ -2,12 +2,8 @@ package com.example.samp_launcher.ui.widgets;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.res.Resources;
-import android.provider.DocumentsContract;
-import android.provider.Settings;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -20,21 +16,18 @@ import androidx.appcompat.app.AlertDialog;
 
 import com.example.samp_launcher.LauncherApplication;
 import com.example.samp_launcher.R;
-import com.example.samp_launcher.core.SAMP.DownloadStatus;
+import com.example.samp_launcher.core.SAMP.Enums.DownloadStatus;
+import com.example.samp_launcher.core.SAMP.Enums.InstallStatus;
 import com.example.samp_launcher.core.SAMP.SAMPInstaller;
 import com.example.samp_launcher.core.SAMP.SAMPInstallerCallback;
-import com.example.samp_launcher.core.SAMP.SAMPInstallerStatus;
-import com.example.samp_launcher.core.SAMP.UnzipStatus;
-import com.example.samp_launcher.ui.widgets.playbutton.SAMPLaunchCallback;
-
-import java.text.DecimalFormat;
+import com.example.samp_launcher.core.SAMP.Enums.SAMPInstallerStatus;
+import com.example.samp_launcher.core.SAMP.Enums.UnzipStatus;
+import com.example.samp_launcher.core.Utils;
 
 public class SAMP_InstallerView extends LinearLayout {
     private Context _Context;
     private View RootView;
-    private interface Lambda{
-        void Run();
-    }
+
     public boolean EnableAnimations = true;
 
     public SAMP_InstallerView(Context context) {
@@ -54,7 +47,7 @@ public class SAMP_InstallerView extends LinearLayout {
         SAMPInstallerStatus Status = Installer.GetStatus();
 
         // Get handles
-        TextView Text = this.RootView.findViewById(R.id.installer_Status_text);
+        TextView Text = this.RootView.findViewById(R.id.installer_status_text);
         RelativeLayout BarLayout = this.RootView.findViewById(R.id.installer_progress_bar_layout);
         Button Button = this.RootView.findViewById(R.id.installer_button);
 
@@ -65,12 +58,12 @@ public class SAMP_InstallerView extends LinearLayout {
             Text.setVisibility(VISIBLE);
 
             if (SAMPInstaller.IsInstalled(context.getPackageManager(), resources)){ // SAMP installed => do nothing
-                Text.setText(resources.getString(R.string.installer_Status_none_SAMP_found));
+                Text.setText(resources.getString(R.string.installer_status_none_SAMP_found));
                 Text.setTextColor(resources.getColor(R.color.colorOk));
 
                 Button.setVisibility(INVISIBLE);
             }else{ // SAMP not found => show button to install
-                Text.setText(resources.getString(R.string.installer_Status_none_SAMP_not_found));
+                Text.setText(resources.getString(R.string.installer_status_none_SAMP_not_found));
                 Text.setTextColor(resources.getColor(R.color.colorError));
 
                 Button.setText(resources.getString(R.string.installer_button_install));
@@ -137,6 +130,7 @@ public class SAMP_InstallerView extends LinearLayout {
                 Text.setVisibility(VISIBLE);
             }
 
+            // Force update download status (used to show current status before it's updated )
             this.UpdateDownloadStatus(Installer.GetDownloadStatus(), resources);
         }
     }
@@ -150,15 +144,13 @@ public class SAMP_InstallerView extends LinearLayout {
             public void OnStatusChanged(SAMPInstallerStatus Status) {
                 Update(context, Application.Installer);
             }
-
             public void OnDownloadProgressChanged(DownloadStatus Status) {
                 Resources resources = context.getResources();
                 UpdateDownloadStatus(Status, resources);
             }
-
-            public void OnUnzipProgressChanged(UnzipStatus Status) { }
-            public void InstallFinished() { }
-            public void InstallCanceled() { }
+            public void OnInstallFinished(InstallStatus Status) {
+                //TODO: Complete this
+            }
         });
 
         // Set init Status
@@ -174,16 +166,16 @@ public class SAMP_InstallerView extends LinearLayout {
 
     // Utils
     private void UpdateDownloadStatus(DownloadStatus Status, Resources resources){
-        TextView Text = this.RootView.findViewById(R.id.installer_Status_text);
+        TextView Text = this.RootView.findViewById(R.id.installer_status_text);
         ProgressBar Bar = this.RootView.findViewById(R.id.installer_download_progress);
         TextView ProgressBarText = this.RootView.findViewById(R.id.installer_download_progress_text);
 
         // Setup values
-        Text.setText(String.format(resources.getString(R.string.installer_Status_downloading), Status.File, Status.FilesNumber));
+        Text.setText(String.format(resources.getString(R.string.installer_status_downloading), Status.File, Status.FilesNumber));
 
         Bar.setProgress((int)(Status.Downloaded / Status.FullSize));
-        ProgressBarText.setText(String.format(resources.getString(R.string.installer_Status_downloading_progress_bar),
-                Status.Downloaded, Status.FullSize));
+        ProgressBarText.setText(String.format(resources.getString(R.string.installer_status_downloading_progress_bar),
+                Utils.BytesToMB(Status.Downloaded), Utils.BytesToMB(Status.FullSize)));
     }
 
     // Alert
@@ -215,13 +207,12 @@ public class SAMP_InstallerView extends LinearLayout {
             public void OnStatusChanged(SAMPInstallerStatus Status) { }
 
             public void OnDownloadProgressChanged(DownloadStatus Status) { }
-            public void OnUnzipProgressChanged(UnzipStatus Status) { }
-
-            public void InstallFinished() {
-                builder.setPositiveButton( "Close", (dialog, which) -> dialog.dismiss());
-            }
-            public void InstallCanceled() {
-                dialog.dismiss();
+            public void OnInstallFinished(InstallStatus Status) {
+                if (Status == InstallStatus.SUCCESSFUL) {
+                    builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
+                }else{
+                    dialog.dismiss();
+                }
             }
         });
     }

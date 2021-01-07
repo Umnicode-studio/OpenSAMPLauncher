@@ -10,6 +10,7 @@ import android.widget.TextView;
 import androidx.annotation.Nullable;
 
 import com.example.samp_launcher.R;
+import com.example.samp_launcher.core.SAMP.Enums.ServerStatus;
 
 public class ServerView extends LinearLayout {
     private View RootView;

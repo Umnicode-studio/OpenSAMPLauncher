@@ -6,15 +6,14 @@ import android.view.View;
 
 import com.example.samp_launcher.LauncherApplication;
 import com.example.samp_launcher.R;
-import com.example.samp_launcher.core.SAMP.DownloadStatus;
+import com.example.samp_launcher.core.SAMP.Enums.DownloadStatus;
+import com.example.samp_launcher.core.SAMP.Enums.InstallStatus;
 import com.example.samp_launcher.core.SAMP.SAMPInstaller;
 import com.example.samp_launcher.core.SAMP.SAMPInstallerCallback;
-import com.example.samp_launcher.core.SAMP.SAMPInstallerStatus;
-import com.example.samp_launcher.core.SAMP.UnzipStatus;
+import com.example.samp_launcher.core.SAMP.Enums.SAMPInstallerStatus;
+import com.example.samp_launcher.core.SAMP.Enums.UnzipStatus;
 import com.example.samp_launcher.core.ServerConfig;
 import com.example.samp_launcher.ui.widgets.SAMP_InstallerView;
-
-import kotlin.jvm.internal.Lambda;
 
 public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
     private PlayButtonAction Action;
@@ -84,7 +83,6 @@ public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
 
         // Force update
         this.UpdateActionByInstallerStatus(this.GetApplication().Installer.GetStatus(), true);
-        System.out.println("Installer Status " + this.GetApplication().Installer.GetStatus());
 
         // Bind to installer Status change
         ((LauncherApplication)this._Context.getApplicationContext()).Installer.Callbacks.add(new SAMPInstallerCallback() {
@@ -92,8 +90,16 @@ public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
                 UpdateActionByInstallerStatus(Status, false);
             }
             public void OnDownloadProgressChanged(DownloadStatus Status) {
-                if (Action == PlayButtonAction.SHOW_DOWNLOAD_Status) {
+                if (Action == PlayButtonAction.SHOW_DOWNLOAD_STATUS) {
                     UpdateDownloadStatus(Status);
+                }
+            }
+
+            public void OnInstallFinished(InstallStatus Status) {
+                if (Status == InstallStatus.SUCCESSFUL){
+                    UpdateAction(PlayButtonAction.LAUNCH_SAMP);
+                }else{
+                    UpdateAction(PlayButtonAction.INSTALL_SAMP);
                 }
             }
 
@@ -101,13 +107,6 @@ public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
                 if (Action == PlayButtonAction.SHOW_UNZIPPING_STATUS){
                     //TODO: Complete this
                 }
-            }
-
-            public void InstallFinished() {
-                UpdateAction(PlayButtonAction.LAUNCH_SAMP);
-            }
-            public void InstallCanceled() {
-                UpdateAction(PlayButtonAction.INSTALL_SAMP);
             }
         });
     }
@@ -118,13 +117,12 @@ public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
     }
 
     private void UpdateDownloadStatus(DownloadStatus Status){
-        this.setText(String.format(this._Context.getResources().getString(R.string.play_button_show_download_Status),
-                Status.File, Status.FilesNumber));
+        this.setText(String.format(this._Context.getResources().getString(R.string.play_button_show_download_status), Status.File, Status.FilesNumber));
     }
 
     private void UpdateActionByInstallerStatus(SAMPInstallerStatus Status, boolean ProceedNone){
         if (Status == SAMPInstallerStatus.DOWNLOADING){
-            UpdateAction(PlayButtonAction.SHOW_DOWNLOAD_Status);
+            UpdateAction(PlayButtonAction.SHOW_DOWNLOAD_STATUS);
         }else if (Status == SAMPInstallerStatus.WAITING_FOR_APK_INSTALL){
             UpdateAction(PlayButtonAction.INSTALL_SAMP_APK);
         }else if (Status == SAMPInstallerStatus.NONE){
@@ -139,8 +137,6 @@ public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
     }
 
     private void UpdateAction(PlayButtonAction NewAction){
-        System.out.println("New action is " + NewAction);
-
         Resources resources = this._Context.getResources();
 
         // Active actions
@@ -164,7 +160,7 @@ public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
             this.setEnabled(false);
         }else if (NewAction == PlayButtonAction.SHOW_UNZIPPING_STATUS){
             // TODO: Complete this
-        } else if (NewAction == PlayButtonAction.SHOW_DOWNLOAD_Status){
+        } else if (NewAction == PlayButtonAction.SHOW_DOWNLOAD_STATUS){
             this.UpdateDownloadStatus(this.GetApplication().Installer.GetDownloadStatus());
             this.setTextColor(resources.getColor(R.color.colorError));
 
