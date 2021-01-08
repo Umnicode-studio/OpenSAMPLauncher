@@ -2,6 +2,7 @@ package com.example.samp_launcher.core;
 
 import android.content.Context;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import com.android.volley.Request;
@@ -97,10 +98,10 @@ public class ServerConfig {
                 new Response.Listener<String>() {
                     public void onResponse(String response) {
                         if (response == null) {
-                            Callback.OnFinish(new ServerConfig(ServerStatus.FAILED_TO_FETCH));
+                            new Handler(Looper.getMainLooper()).post(() -> Callback.OnFinish(new ServerConfig(ServerStatus.FAILED_TO_FETCH)));
                         }else {
                             if (response.equals("Unknown Server ID")) { // Check for not found error
-                                Callback.OnFinish(new ServerConfig(ServerStatus.NOT_FOUND));
+                                new Handler(Looper.getMainLooper()).post(() -> Callback.OnFinish(new ServerConfig(ServerStatus.NOT_FOUND)));
                             }else{
                                 ServerConfig Config = new ServerConfig();
 
@@ -139,7 +140,7 @@ public class ServerConfig {
                                     Config.Status = ServerStatus.FAILED_TO_FETCH;
                                 }
 
-                                Callback.OnFinish(Config); // Finish event
+                                new Handler(Looper.getMainLooper()).post(() -> Callback.OnFinish(Config)); // Finish event
 
                                 // Ping
                                 Thread ping = new Thread(new Runnable() {
@@ -158,7 +159,7 @@ public class ServerConfig {
                                         // Run on main thread
                                         new Handler(context.getMainLooper()).post(new Runnable () {
                                             public void run () {
-                                                Callback.OnPingFinish(Config);
+                                                new Handler(Looper.getMainLooper()).post(() -> Callback.OnPingFinish(Config));
                                             }
                                         });
                                     }
@@ -169,14 +170,14 @@ public class ServerConfig {
                         }
                     }}, new Response.ErrorListener() {
                     public void onErrorResponse(VolleyError error) {
-                        Callback.OnFinish(new ServerConfig(ServerStatus.FAILED_TO_FETCH));
+                        new Handler(Looper.getMainLooper()).post(() -> Callback.OnFinish(new ServerConfig(ServerStatus.FAILED_TO_FETCH)));
                     }
                 }
             );
 
             queue.add(request);
         }else{
-            Callback.OnFinish(new ServerConfig(ServerStatus.INCORRECT_IP)); // Send server with FAILED_TO_FETCH status
+            new Handler(Looper.getMainLooper()).post(() -> Callback.OnFinish(new ServerConfig(ServerStatus.INCORRECT_IP))); // Send server with FAILED_TO_FETCH status
         }
     }
 

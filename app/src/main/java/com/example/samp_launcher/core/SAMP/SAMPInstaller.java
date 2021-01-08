@@ -1,59 +1,83 @@
 package com.example.samp_launcher.core.SAMP;
 
-import android.app.DownloadManager;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
-import android.database.ContentObserver;
-import android.database.Cursor;
-import android.net.Uri;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 
-import androidx.annotation.Nullable;
-
 import com.example.samp_launcher.R;
-import com.example.samp_launcher.core.SAMP.Components.DownloadComponent;
-import com.example.samp_launcher.core.SAMP.Components.DownloadComponentCallback;
+import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadComponent;
+import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadTask;
+import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadTaskCallback;
+import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadTaskFile;
 import com.example.samp_launcher.core.SAMP.Enums.DownloadStatus;
 import com.example.samp_launcher.core.SAMP.Enums.InstallStatus;
 import com.example.samp_launcher.core.SAMP.Enums.SAMPInstallerStatus;
 
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Collections;
 
 public class SAMPInstaller {
     private SAMPInstallerStatus Status = SAMPInstallerStatus.NONE;
     private InstallStatus LastInstallStatus = InstallStatus.NONE;
-    private final DownloadComponent DownloadComponent;
 
     public ArrayList<SAMPInstallerCallback> Callbacks;
-    private String APK_Filepath;
+    private File APK_Filepath;
+
+    private DownloadTask DownloadTask;
 
     public SAMPInstaller(Context context){
         this.Callbacks = new ArrayList<>();
         this.ChangeStatus(SAMPInstallerStatus.NONE);
-        this.APK_Filepath = "";
+        this.APK_Filepath = new File("");
 
         // Setup download component
-        this.DownloadComponent = new DownloadComponent(context);
-        this.DownloadComponent.Callback = new DownloadComponentCallback() { //TODO:
-            public void Finished(boolean Successful) {
-                System.out.println("Finished()");
-            }
-            public void ProgressChanged(DownloadStatus Status) {
-                for (SAMPInstallerCallback Callback : Callbacks){
-                    Handler mainHandler = new Handler(Looper.getMainLooper());
+        Resources resources = context.getResources();
+        File file = new File(Environment.getExternalStorageDirectory().toString() + "/" +
+                resources.getString(R.string.app_root_directory_name) + "/" +
+                resources.getString(R.string.SAMP_download_directory_name));
 
-                    Runnable callbackRunnable = () -> Callback.OnDownloadProgressChanged(Status);
-                    mainHandler.post(callbackRunnable);
-                }
-            }
-        };
+        this.DownloadTask = DownloadComponent.CreateTask(Collections.singletonList(resources.getString(R.string.SAMP_apk_url)), file,
+                new DownloadTaskCallback() {
+                    public void OnFinished(boolean IsCanceled) {
+                        // Check does all files downloaded successfully //TODO
+                        /*for (DownloadTaskFile file : Task.Files){
+                            if (!file.OutputResult){
+                                FinishInstall(InstallStatus.NETWORK_ERROR); // Finish install with error
+                                return;
+                            }
+                        }
+
+                        // Set APK_Filename, we will use it on WAITING_FOR_APK_INSTALL stage
+                        APK_Filepath = Task.Files.get(0).OutputFilename; */
+
+                        // Unzip obb file
+
+                    }
+
+                    public void OnFileDownloadStarted() {
+                        ChangeStatus(SAMPInstallerStatus.DOWNLOADING);
+                    }
+                    public void OnBufferReadingStarted() {
+
+                    }
+                    public void OnFileDownloadFinished(boolean Successful) {
+                        // Do nothing
+                    }
+
+                    public void OnProgressChanged(DownloadStatus Status) {
+                        // Notify callbacks
+                        for (SAMPInstallerCallback Callback : Callbacks){
+                            Handler mainHandler = new Handler(Looper.getMainLooper());
+
+                            Runnable callbackRunnable = () -> Callback.OnDownloadProgressChanged(Status);
+                            mainHandler.post(callbackRunnable);
+                        }
+                    }
+                });
     }
 
     public void OpenInstalledAPK(){
@@ -61,28 +85,23 @@ public class SAMPInstaller {
     }
 
     public void Install(Context context){
-        if (IsInstalled(context.getPackageManager(), context.getResources()) && this.Status == SAMPInstallerStatus.NONE){
+        if (IsInstalled(context.getPackageManager(), context.getResources()) || this.Status != SAMPInstallerStatus.NONE){
             return;
         }
 
-        this.ChangeStatus(SAMPInstallerStatus.DOWNLOADING);
-        this.DownloadComponent.DownloadTo(Arrays.asList("https://drive.google.com/uc?export=download&id=1wa1SYW81wfirLMQ2APnWcM-XNxnJxYZ3"),
-                Environment.getExternalStorageDirectory());
-
-        //TODO: On download finish
-        // Change Status to waiting
-        //this.ChangeStatus(SAMPInstallerStatus.WAITING_FOR_APK_INSTALL);
-
-        APK_Filepath = "";
+        DownloadComponent.RunTask(this.DownloadTask);
+        APK_Filepath = new File("");
     }
 
     public void CancelInstall(){
         if (this.Status == SAMPInstallerStatus.NONE) return;
 
-        // Update statuses
-        this.FinishInstall(InstallStatus.CANCELED);
+        // Stop downloading ( stop container )
+        if (this.DownloadTask != null){
+            //this.DownloadComponent.StopDownload();
+        }
 
-        // Cleanup
+        FinishInstall(InstallStatus.CANCELED);
 
         //TODO:
     }
@@ -92,19 +111,22 @@ public class SAMPInstaller {
         this.Status = Status;
 
         for (SAMPInstallerCallback globalCallback : this.Callbacks){
-            globalCallback.OnStatusChanged(Status);
+            new Handler(Looper.getMainLooper()).post(() -> globalCallback.OnStatusChanged(Status));
         }
     }
 
     private void FinishInstall(InstallStatus Status){
         this.ChangeStatus(SAMPInstallerStatus.NONE);
+
+        // Clean-up
+
         this.BroadcastInstallFinished(Status);
     }
     private void BroadcastInstallFinished(InstallStatus Status){
         this.LastInstallStatus = Status;
 
         for (SAMPInstallerCallback Callback : Callbacks) {
-            Callback.OnInstallFinished(this.LastInstallStatus);
+            new Handler(Looper.getMainLooper()).post(() -> Callback.OnInstallFinished(this.LastInstallStatus));
         }
     }
 
@@ -113,11 +135,7 @@ public class SAMPInstaller {
         return this.Status;
     }
     public DownloadStatus GetDownloadStatus(){
-        if (this.DownloadComponent.GetQueue().isEmpty() && !this.DownloadComponent.GetHistory().isEmpty()) {
-            return this.DownloadComponent.GetHistory().get(this.DownloadComponent.GetHistory().size() - 1).Status;
-        }
-
-        return this.DownloadComponent.GetCurrentTaskStatus();
+        return this.DownloadTask.Status;
     }
     public InstallStatus GetLastInstallStatus() {return this.LastInstallStatus; }
 
