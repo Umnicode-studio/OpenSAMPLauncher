@@ -25,13 +25,7 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
     }
 
     protected Void doInBackground(Void... params) {
-        for (; Task.FileIndex <= Task.Files.size(); ++Task.FileIndex) {
-            if (Task.FileIndex == Task.Files.size()){
-                // Finish task
-                Task.Callback.OnFinished(false);
-                break;
-            }
-
+        for (; Task.FileIndex < Task.Files.size(); ++Task.FileIndex) {
             int Count = 0;
             try {
                 DownloadTaskFile file = Task.Files.get(Task.FileIndex);
@@ -114,10 +108,17 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
                 if (this.isCancelled()) return null;
 
                 // Broadcast finish event
-                this.FinishDownload(true);
+                this.FinishFileDownload(true);
             } catch (Exception e) {
                 Log.e("Error downloading", "- " + e.getMessage()); // Send message to log
-                this.FinishDownload(false);
+                this.FinishFileDownload(false);
+            }
+
+            // On last file we finish task
+            if (Task.FileIndex == Task.Files.size() - 1){
+                // Finish task
+                new Handler(Looper.getMainLooper()).post(() -> Task.Callback.OnFinished(false));
+                break;
             }
         }
 
@@ -138,13 +139,27 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
 
     // Utils
     public void Cleanup(){
-        File file = this.Task.Files.get(this.Task.FileIndex).OutputFilename;
+        if (this.Task.Flag_RemoveAllFilesWhenCancelled) {
+            for (DownloadTaskFile file : this.Task.Files) {
+                this.RmFile(file.OutputFilename);
+            }
+        }else{
+            this.RmFile(this.Task.Files.get(this.Task.FileIndex).OutputFilename); // Remove only current file
+        }
+    }
+
+    private void RmFile(File file){
         if (file != null) file.delete();
     }
 
-    private void FinishDownload(boolean IsSuccessful){
+    private void FinishFileDownload(boolean IsSuccessful){
+        if (!IsSuccessful) {
+            // If flag set - remove failed file from storage
+            this.RmFile(this.Task.Files.get(this.Task.FileIndex).OutputFilename);
+        }
+
         // Set current file status
-        this.Task.Files.get(Task.FileIndex).OutputResult = IsSuccessful;
+        this.Task.Files.get(this.Task.FileIndex).OutputResult = IsSuccessful;
         new Handler(Looper.getMainLooper()).post(() -> this.Task.Callback.OnFileDownloadFinished(IsSuccessful));
     }
 

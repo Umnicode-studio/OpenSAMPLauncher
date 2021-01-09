@@ -23,6 +23,11 @@ import com.example.samp_launcher.core.SAMP.SAMPInstallerCallback;
 import com.example.samp_launcher.core.SAMP.Enums.SAMPInstallerStatus;
 import com.example.samp_launcher.core.Utils;
 
+interface ButtonAnimCallback{
+    void beforeAnim();
+    void onFinished();
+}
+
 public class SAMP_InstallerView extends LinearLayout {
     private final float BUTTON_ANIM_SPEED = 0.2f; // By 1 px
 
@@ -98,7 +103,7 @@ public class SAMP_InstallerView extends LinearLayout {
 
         // Update UI
         System.out.println(Status + " - " + Installer.GetLastInstallStatus());
-        if (Status == SAMPInstallerStatus.NONE){ // No install running
+        if (Status == SAMPInstallerStatus.NONE || Status == SAMPInstallerStatus.CANCELING_INSTALL){ // No install running
             Text.setVisibility(VISIBLE);
 
             if (SAMPInstaller.IsInstalled(context.getPackageManager(), resources)){ // SAMP installed => do nothing TODO: Export
@@ -129,8 +134,13 @@ public class SAMP_InstallerView extends LinearLayout {
                 });
 
                 // Hide bar layout and button with animation
-                this.MoveButtonTo(this.InitialButtonY - BarLayout.getHeight(), this.BUTTON_ANIM_SPEED, () -> {
-                    BarLayout.setVisibility(INVISIBLE);
+                this.MoveButtonTo(this.InitialButtonY - BarLayout.getHeight(), this.BUTTON_ANIM_SPEED, new ButtonAnimCallback() {
+                    public void beforeAnim() {
+                        BarLayout.setVisibility(INVISIBLE);
+                    }
+                    public void onFinished() {
+                        if (Status == SAMPInstallerStatus.CANCELING_INSTALL) Button.setEnabled(false);
+                    }
                 });
             }
         }else if (Status == SAMPInstallerStatus.DOWNLOADING){
@@ -155,12 +165,15 @@ public class SAMP_InstallerView extends LinearLayout {
 
             // Setup progressBar layout and play-animation
             if (BarLayout.getVisibility() == INVISIBLE){
-                this.MoveButtonTo(this.InitialButtonY, BUTTON_ANIM_SPEED, () -> { // speed by 1px
-                    // Show progress bar and text on it
-                    BarLayout.setVisibility(VISIBLE);
+                this.MoveButtonTo(this.InitialButtonY, BUTTON_ANIM_SPEED, new ButtonAnimCallback() { // Speed is measured in ms/1px
+                    public void beforeAnim() { }
+                    public void onFinished() {
+                        // Show progress bar and text on it
+                        BarLayout.setVisibility(VISIBLE);
 
-                    // Show text
-                    Text.setVisibility(VISIBLE);
+                        // Show text
+                        Text.setVisibility(VISIBLE);
+                    }
                 });
             }else{
                 // Show text
@@ -192,7 +205,7 @@ public class SAMP_InstallerView extends LinearLayout {
         }
     }
 
-    private void MoveButtonTo(float y, float Speed, Runnable OnFinish){
+    private void MoveButtonTo(float y, float Speed, ButtonAnimCallback Callback){
         Button button = this.RootView.findViewById(R.id.installer_button);
         Animation ButtonAnim = button.getAnimation();
 
@@ -204,7 +217,10 @@ public class SAMP_InstallerView extends LinearLayout {
         long Duration = 0;
         if (this.EnableAnimations) Duration = (long)(Math.abs(y - button.getY()) / Speed);
 
+        System.out.println("MoveButtonTo() - " + Duration);
+
         button.setEnabled(false);
+        Callback.beforeAnim();
         button.animate().setDuration(Duration).y(y).setListener(new Animator.AnimatorListener() {
             public void onAnimationStart(Animator animation) {
 
@@ -212,7 +228,7 @@ public class SAMP_InstallerView extends LinearLayout {
 
             public void onAnimationEnd(Animator animation) {
                 button.setEnabled(true);
-                OnFinish.run();
+                Callback.onFinished();
             }
 
             public void onAnimationCancel(Animator animation) {

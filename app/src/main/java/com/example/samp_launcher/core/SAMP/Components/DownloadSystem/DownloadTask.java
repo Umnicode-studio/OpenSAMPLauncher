@@ -15,6 +15,9 @@ public class DownloadTask{
     public DownloadStatus Status;
     public DownloadTaskCallback Callback;
 
+    public boolean Flag_RemoveAllFilesWhenCancelled = true;
+    public boolean Flag_RemoveFailedToDownloadFile = true;
+
     DownloadTask(int FileIndex, ArrayList<URL> URL_List, File OutDir, DownloadStatus Status, DownloadTaskCallback Callback){
         this.FileIndex = FileIndex;
 

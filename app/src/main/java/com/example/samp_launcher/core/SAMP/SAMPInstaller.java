@@ -8,6 +8,7 @@ import android.os.Handler;
 import android.os.Looper;
 
 import com.example.samp_launcher.R;
+import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadAsyncTaskContainer;
 import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadComponent;
 import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadTask;
 import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadTaskCallback;
@@ -27,7 +28,8 @@ public class SAMPInstaller {
     public ArrayList<SAMPInstallerCallback> Callbacks;
     private File APK_Filepath;
 
-    private DownloadTask DownloadTask;
+    private final DownloadTask downloadTask;
+    private DownloadAsyncTaskContainer downloadTaskContainer = null;
 
     public SAMPInstaller(Context context){
         this.Callbacks = new ArrayList<>();
@@ -40,7 +42,7 @@ public class SAMPInstaller {
                 resources.getString(R.string.app_root_directory_name) + "/" +
                 resources.getString(R.string.SAMP_download_directory_name));
 
-        this.DownloadTask = DownloadComponent.CreateTask(Collections.singletonList(resources.getString(R.string.SAMP_apk_url)), file,
+        this.downloadTask = DownloadComponent.CreateTask(Collections.singletonList(resources.getString(R.string.SAMP_apk_url)), file,
                 new DownloadTaskCallback() {
                     public void OnFinished(boolean IsCanceled) {
                         // Check does all files downloaded successfully //TODO
@@ -89,19 +91,24 @@ public class SAMPInstaller {
             return;
         }
 
-        DownloadComponent.RunTask(this.DownloadTask);
+        this.downloadTaskContainer = DownloadComponent.RunTask(this.downloadTask);
         APK_Filepath = new File("");
     }
 
     public void CancelInstall(){
         if (this.Status == SAMPInstallerStatus.NONE) return;
 
-        // Stop downloading ( stop container )
-        if (this.DownloadTask != null){
-            //this.DownloadComponent.StopDownload();
-        }
+        this.ChangeStatus(SAMPInstallerStatus.CANCELING_INSTALL);
 
-        FinishInstall(InstallStatus.CANCELED);
+        // Stop downloading ( = stop container )
+        if (this.downloadTaskContainer != null){
+            this.downloadTaskContainer.Cancel(() -> {
+                System.out.println("Container stopped"); //TODO:
+
+                FinishInstall(InstallStatus.CANCELED);
+                this.downloadTaskContainer = null;
+            });
+        }
 
         //TODO:
     }
@@ -119,6 +126,7 @@ public class SAMPInstaller {
         this.ChangeStatus(SAMPInstallerStatus.NONE);
 
         // Clean-up
+        //TODO: Clean-up
 
         this.BroadcastInstallFinished(Status);
     }
@@ -135,7 +143,7 @@ public class SAMPInstaller {
         return this.Status;
     }
     public DownloadStatus GetDownloadStatus(){
-        return this.DownloadTask.Status;
+        return this.downloadTask.Status;
     }
     public InstallStatus GetLastInstallStatus() {return this.LastInstallStatus; }
 
