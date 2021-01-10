@@ -53,8 +53,9 @@
     <string name="installer_status_none_SAMP_found">SAMP found</string>
     <string name="installer_status_none_SAMP_not_found">SAMP not found</string>
 
-    <string name="install_status_network_error">Error downloading</string>
+    <string name="install_status_network_error">Error downloading files</string>
 
+    <string name="installer_status_preparing">Preparing to download</string>
     <string name="installer_status_downloading">Downloading SAMP file %d of %d</string>
     <string name="installer_status_downloading_progress_bar_full"> %.2f/%.2f MB</string>
     <string name="installer_status_downloading_progress_bar_only_downloaded">%.2f MB</string>

@@ -10,9 +10,13 @@ import com.example.samp_launcher.core.SAMP.Enums.DownloadStatus;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.URL;
 import java.net.URLConnection;
+import java.net.UnknownHostException;
 
 class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
     public final DownloadTask Task;
@@ -20,27 +24,52 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
 
     DownloadAsyncTask(DownloadTask Task){
         super();
-
         this.Task = Task;
     }
 
     protected Void doInBackground(Void... params) {
+        new Handler(Looper.getMainLooper()).post(() -> this.Task.Callback.OnStarted());
+
+        // Check for internet connection
+        if (!this.IsInternetAvailable()){
+            Log.println(Log.ERROR, "DownloadSystem", "Internet isn't available");
+            this.BroadcastTaskFinished();
+            return null;
+        }
+
+        // If directory doesn't exist - try to create it
+        if (!this.Task.OutDirectory.exists()){
+            if (this.Task.OutDirectory.mkdirs()){
+                Log.println(Log.INFO, "DownloadSystem", "Output directory doesn't exist, so it was created successfully");
+            }else{
+                Log.println(Log.ERROR, "DownloadSystem", "Failed to create output directory");
+
+                this.BroadcastTaskFinished();
+                return null;
+            }
+        }
+
+        // Fire event after all init checks are finished
+        new Handler(Looper.getMainLooper()).post(() -> this.Task.Callback.OnChecksFinished());
+
         for (; Task.FileIndex < Task.Files.size(); ++Task.FileIndex) {
             int Count = 0;
             try {
+                // Fire event
+                new Handler(Looper.getMainLooper()).post(() -> this.Task.Callback.OnFileDownloadStarted());
+
                 DownloadTaskFile file = Task.Files.get(Task.FileIndex);
                 URLConnection Connection = file.url.openConnection();
                 Connection.connect();
+
+                // Check for cancel
+                if (isCancelled()) return null;
 
                 // Init status
                 this.Task.Status = new DownloadStatus(0, -1.0f, this.Task.FileIndex + 1, this.Task.Files.size());
 
                 // Fire events
-                new Handler(Looper.getMainLooper()).post(() -> this.Task.Callback.OnFileDownloadStarted());
-                new Handler(Looper.getMainLooper()).post(() -> this.Task.Callback.OnProgressChanged(Task.Status)); // Force update status
-
-                // Check for cancel
-                if (isCancelled()) return null;
+                this.BroadcastProgressChanged(); // Force update status
 
                 // Getting file length
                 Task.Status.FullSize = Connection.getContentLength();
@@ -65,6 +94,9 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
 
                 file.OutputFilename = new File(Task.OutDirectory, Filename).getAbsoluteFile();
 
+                // We don't check the result of file creation because we will do it later ( when open output-stream)
+                if (!file.OutputFilename.exists()) file.OutputFilename.createNewFile();
+
                 // Setup streams
                 InputStream Input = new BufferedInputStream(file.url.openStream(), 8192); // input
                 OutputStream Output = new FileOutputStream(file.OutputFilename); // output
@@ -85,7 +117,7 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
                     Output.write(Data, 0, Count);
 
                     // Optimization
-                    if (Counter == 30) {
+                    if (Counter == 64) { // Update progress every 64kb
                         Counter = 0;
 
                         this.BroadcastProgressChanged();
@@ -101,6 +133,7 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
                 Output.flush();
 
                 // Closing streams
+                Connection.getInputStream().close();
                 Output.close();
                 Input.close();
 
@@ -108,16 +141,15 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
                 if (this.isCancelled()) return null;
 
                 // Broadcast finish event
-                this.FinishFileDownload(true);
-            } catch (Exception e) {
-                Log.e("Error downloading", "- " + e.getMessage()); // Send message to log
-                this.FinishFileDownload(false);
+                this.FinishFileDownload(DownloadFileStatus.SUCCESSFUL);
+            } catch (Exception e) { //TODO: Exception parse
+                Log.e("DownloadSystem", "Error downloading - " + e.getMessage()); // Send message to log
+                this.FinishFileDownload(DownloadFileStatus.ERROR);
             }
 
             // On last file we finish task
             if (Task.FileIndex == Task.Files.size() - 1){
-                // Finish task
-                new Handler(Looper.getMainLooper()).post(() -> Task.Callback.OnFinished(false));
+                this.BroadcastTaskFinished(); // Finish task
                 break;
             }
         }
@@ -128,9 +160,9 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
     protected void onCancelled() {
         super.onCancelled();
 
-        System.out.println("WorkerCanceled()"); //TODO:
-
+        this.FinishFileDownload(DownloadFileStatus.CANCELED);
         this.Cleanup();
+
         new Handler(Looper.getMainLooper()).post(() -> this.Task.Callback.OnFinished(true));
 
         // Container event
@@ -143,8 +175,6 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
             for (DownloadTaskFile file : this.Task.Files) {
                 this.RmFile(file.OutputFilename);
             }
-        }else{
-            this.RmFile(this.Task.Files.get(this.Task.FileIndex).OutputFilename); // Remove only current file
         }
     }
 
@@ -152,19 +182,37 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
         if (file != null) file.delete();
     }
 
-    private void FinishFileDownload(boolean IsSuccessful){
-        if (!IsSuccessful) {
+    private void FinishFileDownload(DownloadFileStatus Status){
+        if (Status != DownloadFileStatus.SUCCESSFUL) {
             // If flag set - remove failed file from storage
             this.RmFile(this.Task.Files.get(this.Task.FileIndex).OutputFilename);
         }
 
         // Set current file status
-        this.Task.Files.get(this.Task.FileIndex).OutputResult = IsSuccessful;
-        new Handler(Looper.getMainLooper()).post(() -> this.Task.Callback.OnFileDownloadFinished(IsSuccessful));
+        this.Task.Files.get(this.Task.FileIndex).OutputResult = Status;
+        new Handler(Looper.getMainLooper()).post(() -> this.Task.Callback.OnFileDownloadFinished(Status));
     }
 
     private void BroadcastProgressChanged(){
         new Handler(Looper.getMainLooper()).post(() -> this.Task.Callback.OnProgressChanged(Task.Status));
+    }
+    private void BroadcastTaskFinished(){
+        new Handler(Looper.getMainLooper()).post(() -> Task.Callback.OnFinished(false));
+    }
+
+    private boolean IsInternetAvailable() {
+        try {
+            URL url = new URL("https://google.com");
+            URLConnection connection = url.openConnection();
+            connection.setConnectTimeout(500); //TODO: Move as settings to task
+
+            connection.connect();
+            connection.getInputStream().close();
+
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 };
 
@@ -174,8 +222,6 @@ public class DownloadAsyncTaskContainer {
     DownloadAsyncTaskContainer(DownloadAsyncTask AsyncTask){
         this.AsyncTask = AsyncTask;
         this.AsyncTask.execute(); // Run task
-
-        System.out.println("container running()"); //TODO
     }
 
     public void Cancel(Runnable OnFinish){

@@ -10,11 +10,14 @@ class DownloadTaskCallbackOwner{
 public interface DownloadTaskCallback {
     DownloadTaskCallbackOwner Owner = new DownloadTaskCallbackOwner();
 
+    void OnStarted();
+    default void OnChecksFinished() {};
+
     void OnFinished(boolean IsCanceled);
 
     void OnFileDownloadStarted();
-    void OnBufferReadingStarted();
-    void OnFileDownloadFinished(boolean Successful);
+    default void OnBufferReadingStarted() {};
+    void OnFileDownloadFinished(DownloadFileStatus Status);
 
     void OnProgressChanged(DownloadStatus Status);
 

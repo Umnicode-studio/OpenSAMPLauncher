@@ -27,9 +27,6 @@ public class DownloadComponent{
             }catch (MalformedURLException ignore) { }
         }
 
-        // If directory doesn't exist
-        if (!Directory.exists()) Directory.mkdirs();
-
         // Create task
         return new DownloadTask(0, URL_list, Directory, new DownloadStatus(0, -1, 1, URL_list.size()), Callback);
     }

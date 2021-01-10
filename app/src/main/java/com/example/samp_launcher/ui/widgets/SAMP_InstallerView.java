@@ -102,54 +102,18 @@ public class SAMP_InstallerView extends LinearLayout {
         Resources resources = context.getResources();
 
         // Update UI
-        System.out.println(Status + " - " + Installer.GetLastInstallStatus());
-        if (Status == SAMPInstallerStatus.NONE || Status == SAMPInstallerStatus.CANCELING_INSTALL){ // No install running
-            Text.setVisibility(VISIBLE);
+        Text.setVisibility(VISIBLE);
 
-            if (SAMPInstaller.IsInstalled(context.getPackageManager(), resources)){ // SAMP installed => do nothing TODO: Export
-                Text.setText(resources.getString(R.string.installer_status_none_SAMP_found));
-                Text.setTextColor(resources.getColor(R.color.colorOk));
+        System.out.println(Status + " - " + Installer.GetLastInstallStatus()); //TODO:
 
-                Button.setVisibility(INVISIBLE);
-            }else{
-                Text.setTextColor(resources.getColor(R.color.colorError));
-
-                // Check for install errors
-                if (Installer.GetLastInstallStatus() == InstallStatus.NETWORK_ERROR){
-                    Text.setText(resources.getString(R.string.install_status_network_error));
-                    Button.setText(resources.getString(R.string.installer_button_retry));
-                }else if (Installer.GetLastInstallStatus() == InstallStatus.UNZIP_ERROR ) {
-                    // TODO:
-                }else{
-                    // If there are no errors, promote to install SAMP
-                    Text.setText(resources.getString(R.string.installer_status_none_SAMP_not_found));
-                    Button.setText(resources.getString(R.string.installer_button_install));
-                }
-
-                Button.setOnClickListener(new OnClickListener() {
-                    public void onClick(View v) {
-                        // Install SAMP
-                        ((LauncherApplication)context.getApplicationContext()).Installer.Install(context);
-                    }
-                });
-
-                // Hide bar layout and button with animation
-                this.MoveButtonTo(this.InitialButtonY - BarLayout.getHeight(), this.BUTTON_ANIM_SPEED, new ButtonAnimCallback() {
-                    public void beforeAnim() {
-                        BarLayout.setVisibility(INVISIBLE);
-                    }
-                    public void onFinished() {
-                        if (Status == SAMPInstallerStatus.CANCELING_INSTALL) Button.setEnabled(false);
-                    }
-                });
-            }
-        }else if (Status == SAMPInstallerStatus.DOWNLOADING){
+        if (Status == SAMPInstallerStatus.DOWNLOADING){
             ProgressBar Bar = this.RootView.findViewById(R.id.installer_download_progress);
 
             // Setup button
             Button.setText(resources.getString(R.string.installer_button_cancel));
             Button.setVisibility(VISIBLE);
 
+            // Set click listener
             Button.setOnClickListener(new OnClickListener() {
                 public void onClick(View v) {
                     // Cancel SAMP installation
@@ -170,18 +134,60 @@ public class SAMP_InstallerView extends LinearLayout {
                     public void onFinished() {
                         // Show progress bar and text on it
                         BarLayout.setVisibility(VISIBLE);
-
-                        // Show text
-                        Text.setVisibility(VISIBLE);
                     }
                 });
-            }else{
-                // Show text
-                Text.setVisibility(VISIBLE);
             }
 
             // Force update download status (used to show current status before it's updated )
             this.UpdateDownloadStatus(Installer.GetDownloadStatus(), resources);
+        }else if (Status == SAMPInstallerStatus.PREPARING){
+            // Setup label
+            Text.setTextColor(resources.getColor(R.color.colorNone));
+            Text.setText(resources.getString(R.string.installer_status_preparing));
+
+            // Setup button
+            Button.setEnabled(false);
+            Button.setText(resources.getString(R.string.installer_button_cancel));
+            Button.setVisibility(VISIBLE);
+        } else{ // No install running ( CANCELING_INSTALL || NONE )
+            if (SAMPInstaller.IsInstalled(context.getPackageManager(), resources)){ // SAMP installed => do nothing TODO: Export
+                Text.setText(resources.getString(R.string.installer_status_none_SAMP_found));
+                Text.setTextColor(resources.getColor(R.color.colorOk));
+
+                Button.setVisibility(INVISIBLE);
+            }else{
+                Text.setTextColor(resources.getColor(R.color.colorError));
+
+                // Check for previous install errors
+                if (Installer.GetLastInstallStatus() == InstallStatus.DOWNLOADING_ERROR){
+                    Text.setText(resources.getString(R.string.install_status_network_error));
+                    Button.setText(resources.getString(R.string.installer_button_retry));
+                }else if (Installer.GetLastInstallStatus() == InstallStatus.UNZIP_ERROR ) {
+                    // TODO: UNZIP error message
+                }else{
+                    // If there are no errors, promote to install SAMP
+                    Text.setText(resources.getString(R.string.installer_status_none_SAMP_not_found));
+                    Button.setText(resources.getString(R.string.installer_button_install));
+                }
+
+                Button.setOnClickListener(new OnClickListener() {
+                    public void onClick(View v) {
+                        // Install SAMP
+                        ((LauncherApplication)context.getApplicationContext()).Installer.Install(context);
+                    }
+                });
+
+                // Hide bar layout and button with animation
+                this.MoveButtonTo(this.InitialButtonY - BarLayout.getHeight(), this.BUTTON_ANIM_SPEED, new ButtonAnimCallback() {
+                    public void beforeAnim() {
+                        BarLayout.setVisibility(INVISIBLE);
+                    }
+                    public void onFinished() {
+                        // On CANCELING_INSTALL state we disable the button
+                        if (Status == SAMPInstallerStatus.CANCELING_INSTALL) Button.setEnabled(false);
+                    }
+                });
+            }
         }
     }
 
@@ -217,26 +223,17 @@ public class SAMP_InstallerView extends LinearLayout {
         long Duration = 0;
         if (this.EnableAnimations) Duration = (long)(Math.abs(y - button.getY()) / Speed);
 
-        System.out.println("MoveButtonTo() - " + Duration);
-
         button.setEnabled(false);
         Callback.beforeAnim();
         button.animate().setDuration(Duration).y(y).setListener(new Animator.AnimatorListener() {
-            public void onAnimationStart(Animator animation) {
-
-            }
-
+            public void onAnimationStart(Animator animation) { }
             public void onAnimationEnd(Animator animation) {
                 button.setEnabled(true);
                 Callback.onFinished();
             }
 
-            public void onAnimationCancel(Animator animation) {
-
-            }
-            public void onAnimationRepeat(Animator animation) {
-
-            }
+            public void onAnimationCancel(Animator animation) { }
+            public void onAnimationRepeat(Animator animation) { }
         });
     }
 
@@ -247,7 +244,7 @@ public class SAMP_InstallerView extends LinearLayout {
 
         // Create server view
         SAMP_InstallerView InstallerView = new SAMP_InstallerView(context);
-        InstallerView.EnableAnimations = false; // Disable animations
+        //InstallerView.EnableAnimations = false; // Disable animations
 
         // Create builder
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
@@ -266,15 +263,15 @@ public class SAMP_InstallerView extends LinearLayout {
 
         // Bind event ( if user cancel or finish install - change text )
         ((LauncherApplication)context.getApplicationContext()).Installer.Callbacks.add(new SAMPInstallerCallback(){
-            public void OnStatusChanged(SAMPInstallerStatus Status) { }
+            public void OnStatusChanged(SAMPInstallerStatus Status) {
+                if (Status == SAMPInstallerStatus.CANCELING_INSTALL){
+                    dialog.dismiss();
+                }
+            }
 
             public void OnDownloadProgressChanged(DownloadStatus Status) { }
             public void OnInstallFinished(InstallStatus Status) {
-                if (Status == InstallStatus.CANCELED){
-                    dialog.dismiss();
-                }else{
-                    builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
-                }
+                builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
             }
         });
     }

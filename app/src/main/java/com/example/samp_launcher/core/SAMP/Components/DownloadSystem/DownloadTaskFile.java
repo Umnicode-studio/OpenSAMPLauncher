@@ -5,7 +5,7 @@ import java.net.URL;
 
 public class DownloadTaskFile {
     public File OutputFilename = null;
-    public boolean OutputResult = false;
+    public DownloadFileStatus OutputResult = DownloadFileStatus.NONE;
 
     public URL url;
 
