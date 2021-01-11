@@ -6,12 +6,12 @@ import android.view.View;
 
 import com.example.samp_launcher.LauncherApplication;
 import com.example.samp_launcher.R;
-import com.example.samp_launcher.core.SAMP.Enums.DownloadStatus;
+import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadStatus;
 import com.example.samp_launcher.core.SAMP.Enums.InstallStatus;
 import com.example.samp_launcher.core.SAMP.SAMPInstaller;
 import com.example.samp_launcher.core.SAMP.SAMPInstallerCallback;
 import com.example.samp_launcher.core.SAMP.Enums.SAMPInstallerStatus;
-import com.example.samp_launcher.core.SAMP.Enums.UnzipStatus;
+import com.example.samp_launcher.core.SAMP.Components.ArchiveComponent.UnzipStatus;
 import com.example.samp_launcher.core.ServerConfig;
 import com.example.samp_launcher.ui.widgets.SAMP_InstallerView;
 
@@ -21,6 +21,8 @@ public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
 
     private SAMPLaunchCallback OnSAMPLaunch;
     private Context _Context;
+
+    private SAMPInstallerCallback Callback;
 
     public PlayButton(Context context) {
         super(context);
@@ -33,6 +35,13 @@ public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
     public PlayButton(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         Init(context);
+    }
+
+    protected void onDetachedFromWindow(){
+        super.onDetachedFromWindow();
+
+        // Unregister callback from installer
+        this.GetApplication().Installer.Callbacks.remove(this.Callback);
     }
 
     public void SetServerConfig(ServerConfig Config){
@@ -84,8 +93,8 @@ public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
         // Force update
         this.UpdateActionByInstallerStatus(this.GetApplication().Installer.GetStatus(), true);
 
-        // Bind to installer Status change
-        ((LauncherApplication)this._Context.getApplicationContext()).Installer.Callbacks.add(new SAMPInstallerCallback() {
+        // Create callback
+        this.Callback = new SAMPInstallerCallback() {
             public void OnStatusChanged(SAMPInstallerStatus Status) {
                 UpdateActionByInstallerStatus(Status, false);
             }
@@ -108,7 +117,10 @@ public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
                     //TODO: Complete this
                 }
             }
-        });
+        };
+
+        // Bind to installer Status change
+        ((LauncherApplication)this._Context.getApplicationContext()).Installer.Callbacks.add(this.Callback);
     }
 
     // Utils

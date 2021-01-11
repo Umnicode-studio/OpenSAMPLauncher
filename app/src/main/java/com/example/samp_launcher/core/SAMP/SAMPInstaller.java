@@ -14,13 +14,13 @@ import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadFil
 import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadTask;
 import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadTaskCallback;
 import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadTaskFile;
-import com.example.samp_launcher.core.SAMP.Enums.DownloadStatus;
+import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadStatus;
 import com.example.samp_launcher.core.SAMP.Enums.InstallStatus;
 import com.example.samp_launcher.core.SAMP.Enums.SAMPInstallerStatus;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 
 public class SAMPInstaller {
     private SAMPInstallerStatus Status = SAMPInstallerStatus.NONE;
@@ -43,11 +43,15 @@ public class SAMPInstaller {
                 resources.getString(R.string.app_root_directory_name) + "/" +
                 resources.getString(R.string.SAMP_download_directory_name));
 
-        this.downloadTask = DownloadComponent.CreateTask(Collections.singletonList(resources.getString(R.string.SAMP_apk_url)), file,
+        ArrayList<String> URL = new ArrayList<>(Arrays.asList(resources.getString(R.string.SAMP_apk_url),
+                                                              resources.getString(R.string.SAMP_obb_url)));
+
+        this.downloadTask = DownloadComponent.CreateTask(URL, file,
                 new DownloadTaskCallback() {
                     public void OnStarted() {
                         ChangeStatus(SAMPInstallerStatus.PREPARING);
                     }
+
                     public void OnFinished(boolean IsCanceled) {
                         // Check does all files downloaded successfully
                         if (!IsCanceled) {
@@ -58,29 +62,31 @@ public class SAMPInstaller {
                                 }
                             }
 
-                            // Remove container
-                            downloadTaskContainer = null;
-
                             // Set APK_Filepath, we will use it on WAITING_FOR_APK_INSTALL stage
                             APK_Filepath = Task().Files.get(0).OutputFilename;
 
                             // Unzip obb file
                             //TODO:
+
+                            // Remove container
+                            downloadTaskContainer = null;
                         }
                     }
+
                     public void OnChecksFinished() {
                         ChangeStatus(SAMPInstallerStatus.DOWNLOADING);
                     }
 
                     public void OnFileDownloadStarted() {
                     }
+
                     public void OnFileDownloadFinished(DownloadFileStatus Status) {
                         // Do nothing
                     }
 
                     public void OnProgressChanged(DownloadStatus Status) {
                         // Notify callbacks
-                        for (SAMPInstallerCallback Callback : Callbacks){
+                        for (SAMPInstallerCallback Callback : Callbacks) {
                             Handler mainHandler = new Handler(Looper.getMainLooper());
 
                             Runnable callbackRunnable = () -> Callback.OnDownloadProgressChanged(Status);

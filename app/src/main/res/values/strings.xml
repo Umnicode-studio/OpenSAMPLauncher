@@ -48,7 +48,7 @@
     <string name="SAMP_download_directory_name">Temp/</string>
 
     <string name="SAMP_apk_url">https://drive.google.com/uc?export=download&amp;id=1wa1SYW81wfirLMQ2APnWcM-XNxnJxYZ3</string>
-    <string name="SAMP_obb_url"></string>
+    <string name="SAMP_obb_url">https://www.dropbox.com/s/hti52zezmqy2snw/obb.zip?dl=1</string>
 
     <string name="installer_status_none_SAMP_found">SAMP found</string>
     <string name="installer_status_none_SAMP_not_found">SAMP not found</string>

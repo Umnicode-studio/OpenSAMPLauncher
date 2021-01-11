@@ -1,6 +1,6 @@
 package com.example.samp_launcher.core.SAMP;
 
-import com.example.samp_launcher.core.SAMP.Enums.DownloadStatus;
+import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadStatus;
 import com.example.samp_launcher.core.SAMP.Enums.InstallStatus;
 import com.example.samp_launcher.core.SAMP.Enums.SAMPInstallerStatus;
 

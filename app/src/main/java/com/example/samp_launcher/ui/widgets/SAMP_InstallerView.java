@@ -16,7 +16,7 @@ import androidx.appcompat.app.AlertDialog;
 
 import com.example.samp_launcher.LauncherApplication;
 import com.example.samp_launcher.R;
-import com.example.samp_launcher.core.SAMP.Enums.DownloadStatus;
+import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadStatus;
 import com.example.samp_launcher.core.SAMP.Enums.InstallStatus;
 import com.example.samp_launcher.core.SAMP.SAMPInstaller;
 import com.example.samp_launcher.core.SAMP.SAMPInstallerCallback;
@@ -35,6 +35,7 @@ public class SAMP_InstallerView extends LinearLayout {
     private View RootView;
     private float InitialButtonY = 0;
     private boolean IsOnLayoutFired = false;
+    private SAMPInstallerCallback Callback;
 
     public boolean EnableAnimations = true;
 
@@ -51,28 +52,39 @@ public class SAMP_InstallerView extends LinearLayout {
         this.Init(context);
     }
 
-    private void Init(Context context){
-        this.RootView = inflate(context, R.layout.samp_installer_view, this);
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        System.out.println("Attached");
+    }
 
-        // Bind installer Status changing
-        LauncherApplication Application = (LauncherApplication)context.getApplicationContext();
-        Application.Installer.Callbacks.add(new SAMPInstallerCallback() {
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+
+        // Unregister callback from installer
+        this.GetApplication().Installer.Callbacks.remove(this.Callback);
+    }
+
+    private void Init(Context context){
+        this._Context = context;
+
+        this.RootView = inflate(context, R.layout.samp_installer_view, this);
+        LauncherApplication Application = this.GetApplication();
+
+        // Create callback
+        this.Callback = new SAMPInstallerCallback() {
             public void OnStatusChanged(SAMPInstallerStatus Status) {
-                Update(context, Application.Installer);
+                Update(context, Application.Installer, false);
             }
             public void OnDownloadProgressChanged(DownloadStatus Status) {
                 Resources resources = context.getResources();
                 UpdateDownloadStatus(Status, resources);
             }
-            public void OnInstallFinished(InstallStatus Status) {
-                // nothing
-            }
-        });
+            public void OnInstallFinished(InstallStatus Status) { }
+        };
 
-        this._Context = context;
+        // Bind installer Status changing
+        Application.Installer.Callbacks.add(this.Callback);
     }
-
-    @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         super.onLayout(changed, l, t, r, b);
 
@@ -81,17 +93,12 @@ public class SAMP_InstallerView extends LinearLayout {
             this.InitialButtonY = this.RootView.findViewById(R.id.installer_button).getY();
 
             // Force-update status
-            boolean Temp = this.EnableAnimations;
-
-            this.EnableAnimations = false;
-            this.Update(this._Context, ((LauncherApplication)this._Context.getApplicationContext()).Installer);
-            this.EnableAnimations = Temp;
-
+            this.Update(this._Context, this.GetApplication().Installer, true);
             this.IsOnLayoutFired = true;
         }
     }
 
-    private void Update(Context context, SAMPInstaller Installer){
+    private void Update(Context context, SAMPInstaller Installer, boolean IsInit){
         SAMPInstallerStatus Status = Installer.GetStatus();
 
         // Get handles
@@ -113,13 +120,7 @@ public class SAMP_InstallerView extends LinearLayout {
             Button.setText(resources.getString(R.string.installer_button_cancel));
             Button.setVisibility(VISIBLE);
 
-            // Set click listener
-            Button.setOnClickListener(new OnClickListener() {
-                public void onClick(View v) {
-                    // Cancel SAMP installation
-                    ((LauncherApplication)_Context.getApplicationContext()).Installer.CancelInstall();
-                }
-            });
+            this.BindButtonAsCancel();
 
             // Set text color
             Text.setTextColor(resources.getColor(R.color.colorNone));
@@ -129,7 +130,8 @@ public class SAMP_InstallerView extends LinearLayout {
 
             // Setup progressBar layout and play-animation
             if (BarLayout.getVisibility() == INVISIBLE){
-                this.MoveButtonTo(this.InitialButtonY, BUTTON_ANIM_SPEED, new ButtonAnimCallback() { // Speed is measured in ms/1px
+                this.MoveButtonTo(this.InitialButtonY, BUTTON_ANIM_SPEED, IsInit,
+                        new ButtonAnimCallback() { // Speed is measured in ms/1px
                     public void beforeAnim() { }
                     public void onFinished() {
                         // Show progress bar and text on it
@@ -146,9 +148,11 @@ public class SAMP_InstallerView extends LinearLayout {
             Text.setText(resources.getString(R.string.installer_status_preparing));
 
             // Setup button
-            Button.setEnabled(false);
             Button.setText(resources.getString(R.string.installer_button_cancel));
             Button.setVisibility(VISIBLE);
+
+            this.BindButtonAsCancel();
+            this.HideBarLayout(IsInit, true);
         } else{ // No install running ( CANCELING_INSTALL || NONE )
             if (SAMPInstaller.IsInstalled(context.getPackageManager(), resources)){ // SAMP installed => do nothing TODO: Export
                 Text.setText(resources.getString(R.string.installer_status_none_SAMP_found));
@@ -173,22 +177,43 @@ public class SAMP_InstallerView extends LinearLayout {
                 Button.setOnClickListener(new OnClickListener() {
                     public void onClick(View v) {
                         // Install SAMP
-                        ((LauncherApplication)context.getApplicationContext()).Installer.Install(context);
+                        GetApplication().Installer.Install(context);
                     }
                 });
 
-                // Hide bar layout and button with animation
-                this.MoveButtonTo(this.InitialButtonY - BarLayout.getHeight(), this.BUTTON_ANIM_SPEED, new ButtonAnimCallback() {
+                this.HideBarLayout(IsInit, Status == SAMPInstallerStatus.CANCELING_INSTALL);
+            }
+        }
+    }
+
+    // UI
+    private void HideBarLayout(boolean IsInit, boolean DisableButton){
+        RelativeLayout BarLayout = this.RootView.findViewById(R.id.installer_progress_bar_layout);
+        Button Button = this.RootView.findViewById(R.id.installer_button);
+
+        // Hide bar layout and button with animation
+        this.MoveButtonTo(this.InitialButtonY - BarLayout.getHeight(), this.BUTTON_ANIM_SPEED, IsInit,
+                new ButtonAnimCallback() {
                     public void beforeAnim() {
                         BarLayout.setVisibility(INVISIBLE);
                     }
+
                     public void onFinished() {
-                        // On CANCELING_INSTALL state we disable the button
-                        if (Status == SAMPInstallerStatus.CANCELING_INSTALL) Button.setEnabled(false);
+                        Button.setEnabled(!DisableButton);
                     }
                 });
+    }
+
+    private void BindButtonAsCancel(){
+        Button Button = this.RootView.findViewById(R.id.installer_button);
+
+        // Set click listener
+        Button.setOnClickListener(new OnClickListener() {
+            public void onClick(View v) {
+                // Cancel SAMP installation
+                GetApplication().Installer.CancelInstall();
             }
-        }
+        });
     }
 
     // Utils
@@ -200,18 +225,20 @@ public class SAMP_InstallerView extends LinearLayout {
         // Setup values
         Text.setText(String.format(resources.getString(R.string.installer_status_downloading), Status.File, Status.FilesNumber));
 
-        Bar.setProgress((int)(Status.Downloaded / Status.FullSize));
-
         if (Status.FullSize != -1.0f) {
+            float Percents = (Status.Downloaded / Status.FullSize);
+            Bar.setProgress((int)(Percents * 100));
+
             ProgressBarText.setText(String.format(resources.getString(R.string.installer_status_downloading_progress_bar_full),
                     Utils.BytesToMB(Status.Downloaded), Utils.BytesToMB(Status.FullSize)));
         }else{
+            Bar.setProgress(0);
             ProgressBarText.setText(String.format(resources.getString(R.string.installer_status_downloading_progress_bar_only_downloaded),
                     Utils.BytesToMB(Status.Downloaded)));
         }
     }
 
-    private void MoveButtonTo(float y, float Speed, ButtonAnimCallback Callback){
+    private void MoveButtonTo(float y, float Speed, boolean IsInit, ButtonAnimCallback Callback){
         Button button = this.RootView.findViewById(R.id.installer_button);
         Animation ButtonAnim = button.getAnimation();
 
@@ -221,7 +248,7 @@ public class SAMP_InstallerView extends LinearLayout {
 
         // Convert speed to duration
         long Duration = 0;
-        if (this.EnableAnimations) Duration = (long)(Math.abs(y - button.getY()) / Speed);
+        if (this.EnableAnimations && !IsInit) Duration = (long)(Math.abs(y - button.getY()) / Speed);
 
         button.setEnabled(false);
         Callback.beforeAnim();
@@ -235,6 +262,10 @@ public class SAMP_InstallerView extends LinearLayout {
             public void onAnimationCancel(Animator animation) { }
             public void onAnimationRepeat(Animator animation) { }
         });
+    }
+
+    private LauncherApplication GetApplication(){
+        return (LauncherApplication)this._Context.getApplicationContext();
     }
 
     // Alert

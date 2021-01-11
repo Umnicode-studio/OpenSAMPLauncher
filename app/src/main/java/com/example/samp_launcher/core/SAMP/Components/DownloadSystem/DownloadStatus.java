@@ -1,4 +1,4 @@
-package com.example.samp_launcher.core.SAMP.Enums;
+package com.example.samp_launcher.core.SAMP.Components.DownloadSystem;
 
 public class DownloadStatus{
     public float Downloaded = 0;

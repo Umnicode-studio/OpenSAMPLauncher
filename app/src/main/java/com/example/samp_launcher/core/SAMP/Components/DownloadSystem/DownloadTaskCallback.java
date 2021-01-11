@@ -1,7 +1,5 @@
 package com.example.samp_launcher.core.SAMP.Components.DownloadSystem;
 
-import com.example.samp_launcher.core.SAMP.Enums.DownloadStatus;
-
 // Non-public wrapper for DownloadTask that own this callback
 class DownloadTaskCallbackOwner{
     public DownloadTask Task;

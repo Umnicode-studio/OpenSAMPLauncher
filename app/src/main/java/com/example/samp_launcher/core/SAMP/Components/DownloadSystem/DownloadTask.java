@@ -1,7 +1,5 @@
 package com.example.samp_launcher.core.SAMP.Components.DownloadSystem;
 
-import com.example.samp_launcher.core.SAMP.Enums.DownloadStatus;
-
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
@@ -15,7 +13,7 @@ public class DownloadTask{
     public DownloadStatus Status;
     public DownloadTaskCallback Callback;
 
-    public boolean Flag_RemoveAllFilesWhenCancelled = true;
+    public boolean Flag_RemoveAllFilesWhenCancelled = false;
     public boolean Flag_RemoveFailedToDownloadFile = true;
 
     DownloadTask(int FileIndex, ArrayList<URL> URL_List, File OutDir, DownloadStatus Status, DownloadTaskCallback Callback){

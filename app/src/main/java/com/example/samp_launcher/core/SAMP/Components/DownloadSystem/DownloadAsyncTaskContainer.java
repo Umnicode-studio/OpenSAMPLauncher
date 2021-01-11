@@ -5,22 +5,21 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
-import com.example.samp_launcher.core.SAMP.Enums.DownloadStatus;
-
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetAddress;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
-import java.net.UnknownHostException;
 
 class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
     public final DownloadTask Task;
     public Runnable OnCancelFinish_Container = null;
+
+    private URLConnection Connection = null;
+    private boolean ReadingFromBuffer = false;
 
     DownloadAsyncTask(DownloadTask Task){
         super();
@@ -59,7 +58,7 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
                 new Handler(Looper.getMainLooper()).post(() -> this.Task.Callback.OnFileDownloadStarted());
 
                 DownloadTaskFile file = Task.Files.get(Task.FileIndex);
-                URLConnection Connection = file.url.openConnection();
+                Connection = file.url.openConnection();
                 Connection.connect();
 
                 // Check for cancel
@@ -105,6 +104,7 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
                 if (isCancelled()) return null;
 
                 new Handler(Looper.getMainLooper()).post(() -> this.Task.Callback.OnBufferReadingStarted()); // broadcast event
+                this.ReadingFromBuffer = true;
 
                 byte Data[] = new byte[1024];
 
@@ -129,6 +129,8 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
                 // When finished, broadcast event not considering optimization counter
                 this.BroadcastProgressChanged();
 
+                this.ReadingFromBuffer = false;
+
                 // Flushing output
                 Output.flush();
 
@@ -144,7 +146,7 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
                 this.FinishFileDownload(DownloadFileStatus.SUCCESSFUL);
             } catch (Exception e) { //TODO: Exception parse
                 Log.e("DownloadSystem", "Error downloading - " + e.getMessage()); // Send message to log
-                this.FinishFileDownload(DownloadFileStatus.ERROR);
+                if (!this.isCancelled()) this.FinishFileDownload(DownloadFileStatus.ERROR);
             }
 
             // On last file we finish task
@@ -169,8 +171,21 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
         if (this.OnCancelFinish_Container != null) this.OnCancelFinish_Container.run();
     }
 
+    public void Cancel() {
+        this.cancel(true);
+        if (this.Connection != null && !this.ReadingFromBuffer){
+            if (this.Connection instanceof HttpURLConnection){
+                try {
+                    new Thread(() -> ((HttpURLConnection) Connection).disconnect()).start(); // Does it safe?
+                }catch (Exception e){
+                    Log.println(Log.ERROR, "DownloadSystem", "Error when cancelling - " + e.toString());
+                }
+            }
+        }
+    }
+
     // Utils
-    public void Cleanup(){
+    private void Cleanup(){
         if (this.Task.Flag_RemoveAllFilesWhenCancelled) {
             for (DownloadTaskFile file : this.Task.Files) {
                 this.RmFile(file.OutputFilename);
@@ -185,7 +200,9 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
     private void FinishFileDownload(DownloadFileStatus Status){
         if (Status != DownloadFileStatus.SUCCESSFUL) {
             // If flag set - remove failed file from storage
-            this.RmFile(this.Task.Files.get(this.Task.FileIndex).OutputFilename);
+            if (this.Task.Flag_RemoveFailedToDownloadFile) {
+                this.RmFile(this.Task.Files.get(this.Task.FileIndex).OutputFilename);
+            }
         }
 
         // Set current file status
@@ -226,7 +243,7 @@ public class DownloadAsyncTaskContainer {
 
     public void Cancel(Runnable OnFinish){
         this.AsyncTask.OnCancelFinish_Container = OnFinish;
-        this.AsyncTask.cancel(true); // Cancel task
+        this.AsyncTask.Cancel(); // Cancel task
     }
     public DownloadTask GetTask(){
         return this.AsyncTask.Task;
