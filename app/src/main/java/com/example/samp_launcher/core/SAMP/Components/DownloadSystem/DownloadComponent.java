@@ -1,5 +1,8 @@
 package com.example.samp_launcher.core.SAMP.Components.DownloadSystem;
 
+import com.example.samp_launcher.core.SAMP.Components.AsyncTaskContainer;
+import com.example.samp_launcher.core.SAMP.Components.TaskStatus;
+
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -15,10 +18,10 @@ public class DownloadComponent{
         }
 
         // Create task
-        return new DownloadTask(0, URL_list, Directory, new DownloadStatus(0, -1, 1, URL_list.size()), Callback);
+        return new DownloadTask(0, URL_list, Directory, TaskStatus.CreateEmpty(URL_list.size()), Callback);
     }
 
-    public static DownloadAsyncTaskContainer RunTask(DownloadTask Task){
-        return new DownloadAsyncTaskContainer(new DownloadAsyncTask(Task));
+    public static AsyncTaskContainer RunTask(DownloadTask Task){
+        return new AsyncTaskContainer(new DownloadAsyncTask(Task));
     }
 }

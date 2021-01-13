@@ -48,17 +48,20 @@
     <string name="SAMP_download_directory_name">Temp/</string>
 
     <string name="SAMP_apk_url">https://drive.google.com/uc?export=download&amp;id=1wa1SYW81wfirLMQ2APnWcM-XNxnJxYZ3</string>
-    <string name="SAMP_obb_url">https://www.dropbox.com/s/hti52zezmqy2snw/obb.zip?dl=1</string>
+    <string name="SAMP_data_url">https://www.dropbox.com/s/hti52zezmqy2snw/obb.zip?dl=1</string>
 
     <string name="installer_status_none_SAMP_found">SAMP found</string>
     <string name="installer_status_none_SAMP_not_found">SAMP not found</string>
 
-    <string name="install_status_network_error">Error downloading files</string>
+    <string name="install_status_downloading_error">Error downloading files</string>
+    <string name="install_status_extracting_error">Error extract data file</string>
 
     <string name="installer_status_preparing">Preparing to download</string>
     <string name="installer_status_downloading">Downloading SAMP file %d of %d</string>
-    <string name="installer_status_downloading_progress_bar_full"> %.2f/%.2f MB</string>
-    <string name="installer_status_downloading_progress_bar_only_downloaded">%.2f MB</string>
+    <string name="installer_status_extracting">Extracting SAMP file %d of %d</string>
+
+    <string name="installer_progress_bar_full"> %.2f/%.2f MB</string>
+    <string name="installer_progress_bar_only_done">%.2f MB</string>
 
     <string name="installer_button_install">Install SAMP</string>
     <string name="installer_button_retry">Retry</string>

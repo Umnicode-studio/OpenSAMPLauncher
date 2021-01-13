@@ -16,7 +16,7 @@ import androidx.appcompat.app.AlertDialog;
 
 import com.example.samp_launcher.LauncherApplication;
 import com.example.samp_launcher.R;
-import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadStatus;
+import com.example.samp_launcher.core.SAMP.Components.TaskStatus;
 import com.example.samp_launcher.core.SAMP.Enums.InstallStatus;
 import com.example.samp_launcher.core.SAMP.SAMPInstaller;
 import com.example.samp_launcher.core.SAMP.SAMPInstallerCallback;
@@ -75,15 +75,23 @@ public class SAMP_InstallerView extends LinearLayout {
             public void OnStatusChanged(SAMPInstallerStatus Status) {
                 Update(context, Application.Installer, false);
             }
-            public void OnDownloadProgressChanged(DownloadStatus Status) {
-                Resources resources = context.getResources();
-                UpdateDownloadStatus(Status, resources);
+
+            public void OnDownloadProgressChanged(TaskStatus Status) {
+                UpdateDownloadTaskStatus(Status, context.getResources());
             }
+            public void OnExtractProgressChanged(TaskStatus Status) {
+                UpdateExtractTaskStatus(Status, context.getResources());
+            }
+
             public void OnInstallFinished(InstallStatus Status) { }
         };
 
         // Bind installer Status changing
         Application.Installer.Callbacks.add(this.Callback);
+
+        // Setup progress bar
+        ProgressBar ProgressBar = this.RootView.findViewById(R.id.installer_download_progress);
+        ProgressBar.setMax(100);
     }
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         super.onLayout(changed, l, t, r, b);
@@ -114,35 +122,16 @@ public class SAMP_InstallerView extends LinearLayout {
         System.out.println(Status + " - " + Installer.GetLastInstallStatus()); //TODO:
 
         if (Status == SAMPInstallerStatus.DOWNLOADING){
-            ProgressBar Bar = this.RootView.findViewById(R.id.installer_download_progress);
-
-            // Setup button
-            Button.setText(resources.getString(R.string.installer_button_cancel));
-            Button.setVisibility(VISIBLE);
-
-            this.BindButtonAsCancel();
-
-            // Set text color
-            Text.setTextColor(resources.getColor(R.color.colorNone));
-
-            // Setup progress bar
-            Bar.setMax(100);
-
-            // Setup progressBar layout and play-animation
-            if (BarLayout.getVisibility() == INVISIBLE){
-                this.MoveButtonTo(this.InitialButtonY, BUTTON_ANIM_SPEED, IsInit,
-                        new ButtonAnimCallback() { // Speed is measured in ms/1px
-                    public void beforeAnim() { }
-                    public void onFinished() {
-                        // Show progress bar and text on it
-                        BarLayout.setVisibility(VISIBLE);
-                    }
-                });
-            }
+            this.ShowProcessState(Button, Text, BarLayout, IsInit, resources);
 
             // Force update download status (used to show current status before it's updated )
-            this.UpdateDownloadStatus(Installer.GetDownloadStatus(), resources);
-        }else if (Status == SAMPInstallerStatus.PREPARING){
+            this.UpdateDownloadTaskStatus(Installer.GetCurrentTaskStatus(), resources);
+        } else if (Status == SAMPInstallerStatus.EXTRACTING){
+            this.ShowProcessState(Button, Text, BarLayout, IsInit, resources);
+
+            // Force update extract status (used to show current status before it's updated )
+            this.UpdateExtractTaskStatus(Installer.GetCurrentTaskStatus(), resources);
+        } else if (Status == SAMPInstallerStatus.PREPARING){
             // Setup label
             Text.setTextColor(resources.getColor(R.color.colorNone));
             Text.setText(resources.getString(R.string.installer_status_preparing));
@@ -152,7 +141,7 @@ public class SAMP_InstallerView extends LinearLayout {
             Button.setVisibility(VISIBLE);
 
             this.BindButtonAsCancel();
-            this.HideBarLayout(IsInit, true);
+            this.HideBarLayout(BarLayout, Button, IsInit, true);
         } else{ // No install running ( CANCELING_INSTALL || NONE )
             if (SAMPInstaller.IsInstalled(context.getPackageManager(), resources)){ // SAMP installed => do nothing TODO: Export
                 Text.setText(resources.getString(R.string.installer_status_none_SAMP_found));
@@ -164,33 +153,31 @@ public class SAMP_InstallerView extends LinearLayout {
 
                 // Check for previous install errors
                 if (Installer.GetLastInstallStatus() == InstallStatus.DOWNLOADING_ERROR){
-                    Text.setText(resources.getString(R.string.install_status_network_error));
+                    // Set error message and button text
+                    Text.setText(resources.getString(R.string.install_status_downloading_error));
                     Button.setText(resources.getString(R.string.installer_button_retry));
-                }else if (Installer.GetLastInstallStatus() == InstallStatus.UNZIP_ERROR ) {
-                    // TODO: UNZIP error message
+                }else if (Installer.GetLastInstallStatus() == InstallStatus.EXTRACTING_ERROR) {
+                    // Also we don't bind button callback because it's the same for all branches
+                    Text.setText(resources.getString(R.string.install_status_extracting_error));
+                    Button.setText(resources.getString(R.string.installer_button_retry));
                 }else{
                     // If there are no errors, promote to install SAMP
                     Text.setText(resources.getString(R.string.installer_status_none_SAMP_not_found));
                     Button.setText(resources.getString(R.string.installer_button_install));
                 }
 
-                Button.setOnClickListener(new OnClickListener() {
-                    public void onClick(View v) {
-                        // Install SAMP
-                        GetApplication().Installer.Install(context);
-                    }
+                Button.setOnClickListener(v -> {
+                    // Install SAMP
+                    GetApplication().Installer.Install(context);
                 });
 
-                this.HideBarLayout(IsInit, Status == SAMPInstallerStatus.CANCELING_INSTALL);
+                this.HideBarLayout(BarLayout, Button, IsInit, Status == SAMPInstallerStatus.CANCELING_INSTALL);
             }
         }
     }
 
     // UI
-    private void HideBarLayout(boolean IsInit, boolean DisableButton){
-        RelativeLayout BarLayout = this.RootView.findViewById(R.id.installer_progress_bar_layout);
-        Button Button = this.RootView.findViewById(R.id.installer_button);
-
+    private void HideBarLayout(RelativeLayout BarLayout, Button Button, boolean IsInit, boolean DisableButton){
         // Hide bar layout and button with animation
         this.MoveButtonTo(this.InitialButtonY - BarLayout.getHeight(), this.BUTTON_ANIM_SPEED, IsInit,
                 new ButtonAnimCallback() {
@@ -208,35 +195,71 @@ public class SAMP_InstallerView extends LinearLayout {
         Button Button = this.RootView.findViewById(R.id.installer_button);
 
         // Set click listener
-        Button.setOnClickListener(new OnClickListener() {
-            public void onClick(View v) {
-                // Cancel SAMP installation
-                GetApplication().Installer.CancelInstall();
-            }
+        Button.setOnClickListener(v -> {
+            // Cancel SAMP installation
+            GetApplication().Installer.CancelInstall();
         });
     }
 
+    // States
+    private void ShowProcessState(Button Button, TextView Text, RelativeLayout BarLayout, boolean IsInit, Resources resources){
+        // Show progress bar, setup text color etc
+        // Setup button
+        Button.setText(resources.getString(R.string.installer_button_cancel));
+        Button.setVisibility(VISIBLE);
+
+        this.BindButtonAsCancel();
+
+        // Set text color
+        Text.setTextColor(resources.getColor(R.color.colorNone));
+
+        // Setup progressBar layout and play-animation
+        if (BarLayout.getVisibility() == INVISIBLE){
+            this.MoveButtonTo(this.InitialButtonY, BUTTON_ANIM_SPEED, IsInit,
+                    new ButtonAnimCallback() { // Speed is measured in ms/1px
+                        public void beforeAnim() { }
+                        public void onFinished() {
+                            // Show progress bar and text on it
+                            BarLayout.setVisibility(VISIBLE);
+                        }
+                    });
+        }
+    }
+
     // Utils
-    private void UpdateDownloadStatus(DownloadStatus Status, Resources resources){
+    private void UpdateDownloadTaskStatus(TaskStatus Status, Resources resources){
         TextView Text = this.RootView.findViewById(R.id.installer_status_text);
-        ProgressBar Bar = this.RootView.findViewById(R.id.installer_download_progress);
-        TextView ProgressBarText = this.RootView.findViewById(R.id.installer_download_progress_text);
 
         // Setup values
         Text.setText(String.format(resources.getString(R.string.installer_status_downloading), Status.File, Status.FilesNumber));
+        this.UpdateProgressBar(Status, resources);
+    }
 
-        if (Status.FullSize != -1.0f) {
-            float Percents = (Status.Downloaded / Status.FullSize);
-            Bar.setProgress((int)(Percents * 100));
+    private void UpdateExtractTaskStatus(TaskStatus Status, Resources resources){
+        TextView Text = this.RootView.findViewById(R.id.installer_status_text);
 
-            ProgressBarText.setText(String.format(resources.getString(R.string.installer_status_downloading_progress_bar_full),
-                    Utils.BytesToMB(Status.Downloaded), Utils.BytesToMB(Status.FullSize)));
-        }else{
-            Bar.setProgress(0);
-            ProgressBarText.setText(String.format(resources.getString(R.string.installer_status_downloading_progress_bar_only_downloaded),
-                    Utils.BytesToMB(Status.Downloaded)));
+        // Setup values
+        Text.setText(String.format(resources.getString(R.string.installer_status_extracting), Status.File, Status.FilesNumber));
+        this.UpdateProgressBar(Status, resources); // Update progress bar
+    }
+
+    private void UpdateProgressBar(TaskStatus Status, Resources resources){
+        ProgressBar ProgressBar = this.RootView.findViewById(R.id.installer_download_progress);
+        TextView ProgressBarText = this.RootView.findViewById(R.id.installer_download_progress_text);
+
+        if (Status.FullSize != -1.0f) { // We have both params - full size and done (in bytes)
+            float Percents = (Status.Done / Status.FullSize);
+            ProgressBar.setProgress((int)(Percents * 100));
+
+            ProgressBarText.setText(String.format(resources.getString(R.string.installer_progress_bar_full),
+                    Utils.BytesToMB(Status.Done), Utils.BytesToMB(Status.FullSize)));
+        }else{ // We have only count of proceeded bytes
+            ProgressBar.setProgress(0);
+            ProgressBarText.setText(String.format(resources.getString(R.string.installer_progress_bar_only_done),
+                    Utils.BytesToMB(Status.Done)));
         }
     }
+
 
     private void MoveButtonTo(float y, float Speed, boolean IsInit, ButtonAnimCallback Callback){
         Button button = this.RootView.findViewById(R.id.installer_button);
@@ -300,7 +323,9 @@ public class SAMP_InstallerView extends LinearLayout {
                 }
             }
 
-            public void OnDownloadProgressChanged(DownloadStatus Status) { }
+            public void OnDownloadProgressChanged(TaskStatus Status) { }
+            public void OnExtractProgressChanged(TaskStatus Status) { }
+
             public void OnInstallFinished(InstallStatus Status) {
                 builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
             }

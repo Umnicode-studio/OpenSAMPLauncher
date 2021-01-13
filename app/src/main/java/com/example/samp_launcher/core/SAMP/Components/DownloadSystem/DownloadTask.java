@@ -1,22 +1,21 @@
 package com.example.samp_launcher.core.SAMP.Components.DownloadSystem;
 
+import com.example.samp_launcher.core.SAMP.Components.DefaultTask;
+import com.example.samp_launcher.core.SAMP.Components.TaskStatus;
+
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
 
-public class DownloadTask{
+public class DownloadTask extends DefaultTask {
     public File OutDirectory;
 
-    public int FileIndex;
     public ArrayList<DownloadTaskFile> Files;
-
-    public DownloadStatus Status;
     public DownloadTaskCallback Callback;
 
-    public boolean Flag_RemoveAllFilesWhenCancelled = false;
-    public boolean Flag_RemoveFailedToDownloadFile = true;
+    public int Param_PingTimeout = 500;
 
-    DownloadTask(int FileIndex, ArrayList<URL> URL_List, File OutDir, DownloadStatus Status, DownloadTaskCallback Callback){
+    DownloadTask(int FileIndex, ArrayList<URL> URL_List, File OutDir, TaskStatus Status, DownloadTaskCallback Callback){
         this.FileIndex = FileIndex;
 
         this.Files = new ArrayList<>();
@@ -36,6 +35,15 @@ public class DownloadTask{
             this.Callback.Owner.Task = null; // Remove owner from old callback
             this.Callback = Callback;
             this.Callback.Owner.Task = this; // Set this as a owner in new callback
+        }
+    }
+
+    public void Reset(){
+        // Reset
+        this.FileIndex = 0;
+
+        for (int c = 0; c < this.Files.size(); ++c){
+            this.Files.set(c, new DownloadTaskFile(this.Files.get(c).url));
         }
     }
 }

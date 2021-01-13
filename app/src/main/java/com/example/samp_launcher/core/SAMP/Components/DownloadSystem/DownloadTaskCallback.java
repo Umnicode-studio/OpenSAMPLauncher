@@ -1,5 +1,8 @@
 package com.example.samp_launcher.core.SAMP.Components.DownloadSystem;
 
+import com.example.samp_launcher.core.SAMP.Components.TaskFileStatus;
+import com.example.samp_launcher.core.SAMP.Components.TaskStatus;
+
 // Non-public wrapper for DownloadTask that own this callback
 class DownloadTaskCallbackOwner{
     public DownloadTask Task;
@@ -15,9 +18,9 @@ public interface DownloadTaskCallback {
 
     void OnFileDownloadStarted();
     default void OnBufferReadingStarted() {};
-    void OnFileDownloadFinished(DownloadFileStatus Status);
+    void OnFileDownloadFinished(TaskFileStatus Status);
 
-    void OnProgressChanged(DownloadStatus Status);
+    void OnProgressChanged(TaskStatus Status);
 
     // Get task method
     default DownloadTask Task(){

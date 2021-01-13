@@ -6,12 +6,11 @@ import android.view.View;
 
 import com.example.samp_launcher.LauncherApplication;
 import com.example.samp_launcher.R;
-import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadStatus;
+import com.example.samp_launcher.core.SAMP.Components.TaskStatus;
 import com.example.samp_launcher.core.SAMP.Enums.InstallStatus;
 import com.example.samp_launcher.core.SAMP.SAMPInstaller;
 import com.example.samp_launcher.core.SAMP.SAMPInstallerCallback;
 import com.example.samp_launcher.core.SAMP.Enums.SAMPInstallerStatus;
-import com.example.samp_launcher.core.SAMP.Components.ArchiveComponent.UnzipStatus;
 import com.example.samp_launcher.core.ServerConfig;
 import com.example.samp_launcher.ui.widgets.SAMP_InstallerView;
 
@@ -98,9 +97,9 @@ public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
             public void OnStatusChanged(SAMPInstallerStatus Status) {
                 UpdateActionByInstallerStatus(Status, false);
             }
-            public void OnDownloadProgressChanged(DownloadStatus Status) {
+            public void OnDownloadProgressChanged(TaskStatus Status) {
                 if (Action == PlayButtonAction.SHOW_DOWNLOAD_STATUS) {
-                    UpdateDownloadStatus(Status);
+                    UpdateTaskStatus(Status);
                 }
             }
 
@@ -112,8 +111,8 @@ public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
                 }
             }
 
-            public void OnUnzipProgressChanged(UnzipStatus Status) {
-                if (Action == PlayButtonAction.SHOW_UNZIPPING_STATUS){
+            public void OnExtractProgressChanged(TaskStatus Status) {
+                if (Action == PlayButtonAction.SHOW_EXTRACT_STATUS){
                     //TODO: Complete this
                 }
             }
@@ -128,7 +127,7 @@ public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
         return (LauncherApplication)this._Context.getApplicationContext();
     }
 
-    private void UpdateDownloadStatus(DownloadStatus Status){
+    private void UpdateTaskStatus(TaskStatus Status){
         this.setText(String.format(this._Context.getResources().getString(R.string.play_button_show_download_status), Status.File, Status.FilesNumber));
     }
 
@@ -170,10 +169,10 @@ public class PlayButton extends androidx.appcompat.widget.AppCompatButton {
             this.setText(resources.getString(R.string.play_button_server_incorrect));
             this.setTextColor(resources.getColor(R.color.colorError));
             this.setEnabled(false);
-        }else if (NewAction == PlayButtonAction.SHOW_UNZIPPING_STATUS){
+        }else if (NewAction == PlayButtonAction.SHOW_EXTRACT_STATUS){
             // TODO: Complete this
         } else if (NewAction == PlayButtonAction.SHOW_DOWNLOAD_STATUS){
-            this.UpdateDownloadStatus(this.GetApplication().Installer.GetDownloadStatus());
+            this.UpdateTaskStatus(this.GetApplication().Installer.GetCurrentTaskStatus());
             this.setTextColor(resources.getColor(R.color.colorError));
 
             this.setEnabled(false);

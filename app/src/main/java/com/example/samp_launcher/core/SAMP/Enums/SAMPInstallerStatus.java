@@ -4,7 +4,7 @@ public enum SAMPInstallerStatus {
     NONE,
     PREPARING,
     DOWNLOADING,
-    UNZIPPING,
+    EXTRACTING,
     WAITING_FOR_APK_INSTALL,
     CANCELING_INSTALL
 }

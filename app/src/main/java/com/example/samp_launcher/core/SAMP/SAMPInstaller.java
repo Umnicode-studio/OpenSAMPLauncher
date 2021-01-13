@@ -8,13 +8,18 @@ import android.os.Handler;
 import android.os.Looper;
 
 import com.example.samp_launcher.R;
-import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadAsyncTaskContainer;
+import com.example.samp_launcher.core.SAMP.Components.ArchiveSystem.ArchiveComponent;
+import com.example.samp_launcher.core.SAMP.Components.ArchiveSystem.ExtractTask;
+import com.example.samp_launcher.core.SAMP.Components.ArchiveSystem.ExtractTaskCallback;
+import com.example.samp_launcher.core.SAMP.Components.ArchiveSystem.ExtractTaskFile.ExtractTaskFile;
+import com.example.samp_launcher.core.SAMP.Components.ArchiveSystem.ExtractTaskFile.ExtractTaskFileInit;
+import com.example.samp_launcher.core.SAMP.Components.AsyncTaskContainer;
 import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadComponent;
-import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadFileStatus;
+import com.example.samp_launcher.core.SAMP.Components.TaskFileStatus;
 import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadTask;
 import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadTaskCallback;
 import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadTaskFile;
-import com.example.samp_launcher.core.SAMP.Components.DownloadSystem.DownloadStatus;
+import com.example.samp_launcher.core.SAMP.Components.TaskStatus;
 import com.example.samp_launcher.core.SAMP.Enums.InstallStatus;
 import com.example.samp_launcher.core.SAMP.Enums.SAMPInstallerStatus;
 
@@ -30,7 +35,10 @@ public class SAMPInstaller {
     private File APK_Filepath;
 
     private final DownloadTask downloadTask;
-    private DownloadAsyncTaskContainer downloadTaskContainer = null;
+    private AsyncTaskContainer downloadTaskContainer = null;
+
+    private ExtractTask extractTask = null;
+    private AsyncTaskContainer extractTaskContainer = null;
 
     public SAMPInstaller(Context context){
         this.Callbacks = new ArrayList<>();
@@ -39,14 +47,14 @@ public class SAMPInstaller {
 
         // Setup download component
         Resources resources = context.getResources();
-        File file = new File(Environment.getExternalStorageDirectory().toString() + "/" +
+        File defaultDir = new File(Environment.getExternalStorageDirectory().toString() + "/" +
                 resources.getString(R.string.app_root_directory_name) + "/" +
                 resources.getString(R.string.SAMP_download_directory_name));
 
         ArrayList<String> URL = new ArrayList<>(Arrays.asList(resources.getString(R.string.SAMP_apk_url),
-                                                              resources.getString(R.string.SAMP_obb_url)));
+                                                              resources.getString(R.string.SAMP_data_url)));
 
-        this.downloadTask = DownloadComponent.CreateTask(URL, file,
+        this.downloadTask = DownloadComponent.CreateTask(URL, defaultDir,
                 new DownloadTaskCallback() {
                     public void OnStarted() {
                         ChangeStatus(SAMPInstallerStatus.PREPARING);
@@ -56,7 +64,7 @@ public class SAMPInstaller {
                         // Check does all files downloaded successfully
                         if (!IsCanceled) {
                             for (DownloadTaskFile file : this.Task().Files) {
-                                if (file.OutputResult != DownloadFileStatus.SUCCESSFUL) {
+                                if (file.OutputResult != TaskFileStatus.SUCCESSFUL) {
                                     FinishInstall(InstallStatus.DOWNLOADING_ERROR); // Finish install with error
                                     return;
                                 }
@@ -65,8 +73,19 @@ public class SAMPInstaller {
                             // Set APK_Filepath, we will use it on WAITING_FOR_APK_INSTALL stage
                             APK_Filepath = Task().Files.get(0).OutputFilename;
 
-                            // Unzip obb file
-                            //TODO:
+                            // Setup path to data dir
+                            File ObbDir = new File(Environment.getExternalStorageDirectory().toString() + "/Android/data");
+
+                            // Try to extract data file
+                            ArrayList<ExtractTaskFileInit> TaskFiles = new ArrayList<>();
+                            TaskFiles.add(new ExtractTaskFileInit(Task().Files.get(1).OutputFilename,
+                                    ObbDir, false));
+
+                            extractTask.SetFilesFromInit(TaskFiles);
+
+                            // Run new container
+                            ChangeStatus(SAMPInstallerStatus.EXTRACTING); // Change status
+                            extractTaskContainer = ArchiveComponent.RunTask(extractTask);
 
                             // Remove container
                             downloadTaskContainer = null;
@@ -77,14 +96,10 @@ public class SAMPInstaller {
                         ChangeStatus(SAMPInstallerStatus.DOWNLOADING);
                     }
 
-                    public void OnFileDownloadStarted() {
-                    }
+                    public void OnFileDownloadStarted() { }
+                    public void OnFileDownloadFinished(TaskFileStatus Status) { }
 
-                    public void OnFileDownloadFinished(DownloadFileStatus Status) {
-                        // Do nothing
-                    }
-
-                    public void OnProgressChanged(DownloadStatus Status) {
+                    public void OnProgressChanged(TaskStatus Status) {
                         // Notify callbacks
                         for (SAMPInstallerCallback Callback : Callbacks) {
                             Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -94,12 +109,47 @@ public class SAMPInstaller {
                         }
                     }
                 });
+
+        this.extractTask = ArchiveComponent.CreateTask(new ArrayList<>(), new ExtractTaskCallback() {
+            public void OnStarted() {
+                ChangeStatus(SAMPInstallerStatus.EXTRACTING);
+            }
+            public void OnFinished(boolean IsCanceled) {
+                if (!IsCanceled) {
+                    for (ExtractTaskFile file : this.Task().Files) {
+                        if (file.OutputResult != TaskFileStatus.SUCCESSFUL) {
+                            FinishInstall(InstallStatus.EXTRACTING_ERROR); // Finish install with error
+                            return;
+                        }
+                    }
+
+                    // Remove extract container
+                    extractTaskContainer = null;
+                }
+
+                //TODO: Waiting for APK install phase
+            }
+
+            public void OnFileExtractStarted(ExtractTaskFile File) { }
+            public void OnFileExtractFinished(ExtractTaskFile File, TaskFileStatus Status) { }
+
+            public void OnProgressChanged(TaskStatus Status) {
+                // Notify callbacks
+                for (SAMPInstallerCallback Callback : Callbacks) {
+                    Handler mainHandler = new Handler(Looper.getMainLooper());
+
+                    Runnable callbackRunnable = () -> Callback.OnExtractProgressChanged(Status);
+                    mainHandler.post(callbackRunnable);
+                }
+            }
+        });
     }
 
     public void OpenInstalledAPK(){
         // TODO
     }
 
+    // Install management
     public void Install(Context context){
         if (IsInstalled(context.getPackageManager(), context.getResources()) || this.Status != SAMPInstallerStatus.NONE){
             return;
@@ -117,31 +167,38 @@ public class SAMPInstaller {
             this.ChangeStatus(SAMPInstallerStatus.CANCELING_INSTALL);
 
             this.downloadTaskContainer.Cancel(() -> {
-                FinishInstall(InstallStatus.CANCELED);
                 this.downloadTaskContainer = null;
+                CheckCancelState();
             });
-        }else{
-            FinishInstall(InstallStatus.CANCELED);
         }
 
-        //TODO:
+        // Stop extract container
+        if (this.extractTaskContainer != null){
+            this.ChangeStatus(SAMPInstallerStatus.CANCELING_INSTALL);
+
+            this.extractTaskContainer.Cancel(() -> {
+                this.extractTaskContainer = null;
+                CheckCancelState();
+            });
+        }
+
+        this.CheckCancelState();
     }
 
     // Utils
-    private void ChangeStatus(SAMPInstallerStatus Status){
-        this.Status = Status;
-
-        for (SAMPInstallerCallback globalCallback : this.Callbacks){
-            new Handler(Looper.getMainLooper()).post(() -> globalCallback.OnStatusChanged(Status));
+    private void CheckCancelState(){
+        if (this.downloadTaskContainer == null && this.extractTaskContainer == null){
+            FinishInstall(InstallStatus.CANCELED);
         }
     }
 
+    private void Cleanup(){
+        //TODO: Implement this
+    }
+
     private void FinishInstall(InstallStatus Status){
+        this.Cleanup();
         this.ChangeStatus(SAMPInstallerStatus.NONE);
-
-        // Clean-up
-        //TODO: Clean-up
-
         this.BroadcastInstallFinished(Status);
     }
     private void BroadcastInstallFinished(InstallStatus Status){
@@ -152,11 +209,20 @@ public class SAMPInstaller {
         }
     }
 
+    private void ChangeStatus(SAMPInstallerStatus Status){
+        this.Status = Status;
+
+        for (SAMPInstallerCallback globalCallback : this.Callbacks){
+            new Handler(Looper.getMainLooper()).post(() -> globalCallback.OnStatusChanged(Status));
+        }
+    }
+
     // Getters
     public SAMPInstallerStatus GetStatus(){
         return this.Status;
     }
-    public DownloadStatus GetDownloadStatus(){
+    public TaskStatus GetCurrentTaskStatus(){
+        if (this.Status == SAMPInstallerStatus.EXTRACTING) return this.extractTask.Status;
         return this.downloadTask.Status;
     }
     public InstallStatus GetLastInstallStatus() {return this.LastInstallStatus; }
@@ -171,5 +237,5 @@ public class SAMPInstaller {
         }
     }
 
-    //TODO: Export to folder function
+    //TODO: Export to Directory function
 }

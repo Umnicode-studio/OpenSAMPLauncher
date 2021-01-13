@@ -5,6 +5,12 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import com.example.samp_launcher.core.SAMP.Components.DefaultTask;
+import com.example.samp_launcher.core.SAMP.Components.ExtendedAsyncTask;
+import com.example.samp_launcher.core.SAMP.Components.TaskFileStatus;
+import com.example.samp_launcher.core.SAMP.Components.TaskStatus;
+import com.example.samp_launcher.core.Utils;
+
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -14,8 +20,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 
-class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
-    public final DownloadTask Task;
+class DownloadAsyncTask extends ExtendedAsyncTask {
+    public DownloadTask Task;
     public Runnable OnCancelFinish_Container = null;
 
     private URLConnection Connection = null;
@@ -30,7 +36,7 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
         new Handler(Looper.getMainLooper()).post(() -> this.Task.Callback.OnStarted());
 
         // Check for internet connection
-        if (!this.IsInternetAvailable()){
+        if (!this.IsInternetAvailable(this.Task.Param_PingTimeout)){
             Log.println(Log.ERROR, "DownloadSystem", "Internet isn't available");
             this.BroadcastTaskFinished();
             return null;
@@ -65,7 +71,7 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
                 if (isCancelled()) return null;
 
                 // Init status
-                this.Task.Status = new DownloadStatus(0, -1.0f, this.Task.FileIndex + 1, this.Task.Files.size());
+                this.Task.Status = new TaskStatus(0, -1.0f, this.Task.FileIndex + 1, this.Task.Files.size());
 
                 // Fire events
                 this.BroadcastProgressChanged(); // Force update status
@@ -73,7 +79,7 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
                 // Getting file length
                 Task.Status.FullSize = Connection.getContentLength();
 
-                // Get filename
+                // Get filename of file (if server provides it, otherwise set it to default str)
                 String Filename;
 
                 String contentDispositionRaw = Connection.getHeaderField("Content-Disposition");
@@ -95,6 +101,10 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
 
                 // We don't check the result of file creation because we will do it later ( when open output-stream)
                 if (!file.OutputFilename.exists()) file.OutputFilename.createNewFile();
+                else if (!this.Task.Flag_OverrideIfExist){ // Check for flag
+                    this.FinishFileDownload(TaskFileStatus.SUCCESSFUL); // Fire event
+                    continue; // Skip this file, it's already downloaded
+                }
 
                 // Setup streams
                 InputStream Input = new BufferedInputStream(file.url.openStream(), 8192); // input
@@ -113,11 +123,11 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
                     // Check for cancel
                     if (this.isCancelled()) return null;
 
-                    Task.Status.Downloaded += Count;
+                    Task.Status.Done += Count;
                     Output.write(Data, 0, Count);
 
                     // Optimization
-                    if (Counter == 64) { // Update progress every 64kb
+                    if (Counter == Task.Param_UpdateProgressFrequency) { // Update progress every 64kb
                         Counter = 0;
 
                         this.BroadcastProgressChanged();
@@ -127,7 +137,7 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
                 }
 
                 // When finished, broadcast event not considering optimization counter
-                this.BroadcastProgressChanged();
+                if (Counter != this.Task.Param_UpdateProgressFrequency) this.BroadcastProgressChanged();
 
                 this.ReadingFromBuffer = false;
 
@@ -135,7 +145,6 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
                 Output.flush();
 
                 // Closing streams
-                Connection.getInputStream().close();
                 Output.close();
                 Input.close();
 
@@ -143,26 +152,24 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
                 if (this.isCancelled()) return null;
 
                 // Broadcast finish event
-                this.FinishFileDownload(DownloadFileStatus.SUCCESSFUL);
-            } catch (Exception e) { //TODO: Exception parse
+                this.FinishFileDownload(TaskFileStatus.SUCCESSFUL);
+            } catch (Exception e) {
                 Log.e("DownloadSystem", "Error downloading - " + e.getMessage()); // Send message to log
-                if (!this.isCancelled()) this.FinishFileDownload(DownloadFileStatus.ERROR);
-            }
-
-            // On last file we finish task
-            if (Task.FileIndex == Task.Files.size() - 1){
-                this.BroadcastTaskFinished(); // Finish task
-                break;
+                if (!this.isCancelled()) this.FinishFileDownload(TaskFileStatus.ERROR);
             }
         }
+
+        // After last file downloaded we finish task
+        this.BroadcastTaskFinished();
 
         return null;
     }
 
+    // Overrides
     protected void onCancelled() {
-        super.onCancelled();
+        //super.onCancelled();
 
-        this.FinishFileDownload(DownloadFileStatus.CANCELED);
+        this.FinishFileDownload(TaskFileStatus.CANCELED);
         this.Cleanup();
 
         new Handler(Looper.getMainLooper()).post(() -> this.Task.Callback.OnFinished(true));
@@ -172,7 +179,10 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
     }
 
     public void Cancel() {
+        // Cancel async-task
         this.cancel(true);
+
+        // Close socket connection ( if possible and needed )
         if (this.Connection != null && !this.ReadingFromBuffer){
             if (this.Connection instanceof HttpURLConnection){
                 try {
@@ -184,24 +194,29 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
         }
     }
 
+    public DefaultTask GetTask() {
+        return this.Task;
+    }
+
     // Utils
-    private void Cleanup(){
+    protected void Cleanup(){
         if (this.Task.Flag_RemoveAllFilesWhenCancelled) {
             for (DownloadTaskFile file : this.Task.Files) {
-                this.RmFile(file.OutputFilename);
+                file.OutputResult = TaskFileStatus.CANCELED;
+                Utils.RemoveFile(file.OutputFilename);
             }
+        }
+
+        if (this.Task.Flag_ResetTaskWhenCanceled){
+            this.Task.Reset(); // Reset task
         }
     }
 
-    private void RmFile(File file){
-        if (file != null) file.delete();
-    }
-
-    private void FinishFileDownload(DownloadFileStatus Status){
-        if (Status != DownloadFileStatus.SUCCESSFUL) {
+    private void FinishFileDownload(TaskFileStatus Status){
+        if (Status != TaskFileStatus.SUCCESSFUL) {
             // If flag set - remove failed file from storage
-            if (this.Task.Flag_RemoveFailedToDownloadFile) {
-                this.RmFile(this.Task.Files.get(this.Task.FileIndex).OutputFilename);
+            if (this.Task.Flag_RemoveFailedFile) {
+                Utils.RemoveFile(this.Task.Files.get(this.Task.FileIndex).OutputFilename);
             }
         }
 
@@ -217,35 +232,19 @@ class DownloadAsyncTask extends AsyncTask<Void, Void, Void> {
         new Handler(Looper.getMainLooper()).post(() -> Task.Callback.OnFinished(false));
     }
 
-    private boolean IsInternetAvailable() {
+    private boolean IsInternetAvailable(int Timeout) {
         try {
             URL url = new URL("https://google.com");
             URLConnection connection = url.openConnection();
-            connection.setConnectTimeout(500); //TODO: Move as settings to task
+            connection.setConnectTimeout(Timeout);
 
-            connection.connect();
-            connection.getInputStream().close();
+            InputStream stream = connection.getInputStream();
+            stream.close();
 
             return true;
         } catch (Exception e) {
+            Log.e("DownloadSystem", "Ping failed - " + e.getMessage());
             return false;
         }
     }
 };
-
-public class DownloadAsyncTaskContainer {
-    private final DownloadAsyncTask AsyncTask;
-
-    DownloadAsyncTaskContainer(DownloadAsyncTask AsyncTask){
-        this.AsyncTask = AsyncTask;
-        this.AsyncTask.execute(); // Run task
-    }
-
-    public void Cancel(Runnable OnFinish){
-        this.AsyncTask.OnCancelFinish_Container = OnFinish;
-        this.AsyncTask.Cancel(); // Cancel task
-    }
-    public DownloadTask GetTask(){
-        return this.AsyncTask.Task;
-    }
-}
