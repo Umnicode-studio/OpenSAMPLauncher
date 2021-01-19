@@ -11,7 +11,10 @@
     <string name="play_button_launch_SAMP">Play</string>
     <string name="play_button_server_incorrect">Server info incorrect</string>
     <string name="play_button_install_SAMP">Install SAMP</string>
+    <string name="play_button_install_SAMP_APK">Install APK</string>
+    <string name="play_button_install_SAMP_CACHE">Install SAMP cache</string>
     <string name="play_button_show_download_status">Downloading %d of %d</string>
+    <string name="play_button_show_extract_status">Extracting %.2f/%.2f</string>
 
     <string name="add_server_button">Add server to list</string>
 
@@ -40,10 +43,11 @@
     <string name="server_status_incorrect_ip">Incorrect IP, please recheck it</string>
 
     <string name="settings_nickname_text">Edit nickname</string>
-    <string name="settings_ping_timeout_text">Edit ping timeout (value less than 2500 can cause inaccuracies)</string>
+    <string name="settings_ping_timeout_text">Edit ping timeout (value less than 250 can cause inaccuracies)</string>
 
     <string name="SAMP_package_name">com.rockstargames.gtasa</string>
 
+    <!-- All app directories are relative ( it absolute path it will be like ExternalStorageRoot/app_root_directory_name/dir name )-->
     <string name="app_root_directory_name">OpenSAMP_Launcher</string>
     <string name="SAMP_download_directory_name">Temp/</string>
 
@@ -52,18 +56,24 @@
 
     <string name="installer_status_none_SAMP_found">SAMP found</string>
     <string name="installer_status_none_SAMP_not_found">SAMP not found</string>
+    <string name="installer_status_none_SAMP_cache_not_found">SAMP not found</string>
 
     <string name="install_status_downloading_error">Error downloading files</string>
     <string name="install_status_extracting_error">Error extract data file</string>
+    <string name="install_status_storage_permissions_denied">Storage permissions are denied</string>
+    <string name="install_status_apk_not_found">SAMP apk not found</string>
 
     <string name="installer_status_preparing">Preparing to download</string>
     <string name="installer_status_downloading">Downloading SAMP file %d of %d</string>
     <string name="installer_status_extracting">Extracting SAMP file %d of %d</string>
+    <string name="installer_status_waiting_for_apk_install">Press button to install SAMP APK</string>
 
     <string name="installer_progress_bar_full"> %.2f/%.2f MB</string>
     <string name="installer_progress_bar_only_done">%.2f MB</string>
 
     <string name="installer_button_install">Install SAMP</string>
+    <string name="installer_button_install_cache">Install SAMP cache</string>
     <string name="installer_button_retry">Retry</string>
     <string name="installer_button_cancel">Cancel</string>
+    <string name="installer_button_waiting_for_apk_install">Install APK</string>
 </resources>

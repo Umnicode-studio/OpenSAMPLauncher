@@ -1,4 +1,4 @@
-package com.example.samp_launcher
+package com.umnicode.samp_launcher
 
 import org.junit.Test
 

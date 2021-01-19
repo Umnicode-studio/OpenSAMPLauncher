@@ -9,10 +9,12 @@
 
     <Button
         android:id="@+id/add_server_btn"
-        style="@style/Widget.AppCompat.Button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@android:drawable/btn_default"
+        android:fontFamily="@font/lato"
+        android:includeFontPadding="false"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp"
         android:text="@string/add_server_button"
         app:layout_constraintBottom_toTopOf="@+id/divider2"
         app:layout_constraintEnd_toEndOf="parent"
@@ -36,12 +38,11 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.0" />
 
-    <com.example.samp_launcher.ui.widgets.playbutton.PlayButton
+    <com.umnicode.samp_launcher.ui.widgets.playbutton.PlayButton
         android:id="@+id/play_btn"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginBottom="60dp"
-        android:background="@android:drawable/btn_default"
         android:fontFamily="@font/lato"
         android:textSize="18sp"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -141,7 +142,7 @@
         app:layout_constraintTop_toBottomOf="@+id/nickname"
         app:layout_constraintVertical_bias="0.0" />
 
-    <com.example.samp_launcher.core.ServerView
+    <com.umnicode.samp_launcher.core.ServerView
         android:id="@+id/server_view"
         android:layout_width="0dp"
         android:layout_height="0dp"
